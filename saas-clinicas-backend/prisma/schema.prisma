@@ -1,0 +1,65 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  PROFESSIONAL
+  RECEPTION
+}
+
+/// A clínica é o tenant: toda entidade de negócio aponta para ela via `tenantId`.
+model Clinic {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  email     String
+  phone     String
+  document  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessHours ClinicBusinessHour[]
+  users         User[]
+
+  @@map("clinics")
+}
+
+model ClinicBusinessHour {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  /// 0 = domingo ... 6 = sábado
+  weekday  Int
+  /// Formato HH:mm
+  opensAt  String
+  /// Formato HH:mm
+  closesAt String
+
+  clinic Clinic @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, weekday])
+  @@map("clinic_business_hours")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  name         String
+  /// Único na plataforma: o login será feito por e-mail
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clinic Clinic @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("users")
+}

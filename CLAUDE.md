@@ -27,18 +27,24 @@ As subpastas NÃO devem ter `.git` próprio.
 
 ## Regras de multi-tenancy
 
-- Toda entidade de negócio tem `tenantId` (ou `clinicId`)
+- Estratégia: coluna `tenantId` em cada tabela (banco e schema compartilhados)
+- A clínica é o tenant: toda entidade de negócio tem `tenantId` apontando para `Clinic.id` (sempre `tenantId`, nunca `clinicId`)
 - Toda consulta e escrita no backend filtra pelo tenant do usuário autenticado
 - O tenant vem do token de autenticação, nunca de parâmetro enviado pelo cliente
 - Testes devem cobrir que um tenant não acessa dados de outro
+
+## Stack decidida
+
+- Banco: PostgreSQL 17 (via `docker-compose.yml` na raiz)
+- ORM: Prisma 7 (client gerado em `src/generated/prisma`, não versionado)
+- Validação no backend: `class-validator` + `class-transformer` (ValidationPipe global)
+- Senhas: hash com `argon2`
+- UI do frontend: Vuetify (Material Design 3), integrado via `vite-plugin-vuetify`
 
 ## Decisões ainda em aberto
 
 Pergunte antes de escolher:
 
-- Banco de dados e ORM
-- Estratégia de multi-tenancy (coluna tenant_id, schema por tenant ou banco por tenant)
-- Biblioteca de UI do frontend
 - Estratégia de autenticação
 
 ## Convenções
@@ -51,10 +57,19 @@ Pergunte antes de escolher:
 
 ## Comandos
 
-Backend (`saas-clinicas-backend/`):
+Raiz:
+- `make up [back|front]` — sobe banco + backend + frontend (ou só um deles)
+- `make db` / `make db-down` — sobe/para o Postgres
+- `make migrate` — cria/aplica migrations no banco de desenvolvimento
+
+Backend (`saas-clinicas-backend/`, copie `.env.example` para `.env`):
 - `npm run start:dev` — servidor em modo desenvolvimento
-- `npm run test` — testes
+- `npm run test` — testes unitários
+- `npm run test:e2e` — testes e2e (usam o banco `saas_clinicas_test`)
 - `npm run lint` — lint
+- `npx prisma generate` — regenera o client após mudar o schema
 
 Frontend (`saas-clinicas-frontend/`):
 - `npm run dev` — servidor em modo desenvolvimento
+- `npm run lint` — lint
+- `npm run typecheck` — checagem de tipos

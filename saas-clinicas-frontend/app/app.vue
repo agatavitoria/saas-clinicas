@@ -1,6 +1,6 @@
 <template>
-  <div>
+  <NuxtLayout>
     <NuxtRouteAnnouncer />
-    <h1>SaaS Clínicas</h1>
-  </div>
+    <NuxtPage />
+  </NuxtLayout>
 </template>
