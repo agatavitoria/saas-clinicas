@@ -1,12 +1,29 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
+import { USER_PROFILE_SELECT } from '../auth/auth-user.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { UserRole } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { ClinicResponse } from './dto/clinic-response.dto.js';
+import type {
+  ClinicDetails,
+  ClinicResponse,
+} from './dto/clinic-response.dto.js';
 import type { CreateClinicDto } from './dto/create-clinic.dto.js';
 
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
+
+const CLINIC_DETAILS_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  document: true,
+  createdAt: true,
+  businessHours: {
+    select: { weekday: true, opensAt: true, closesAt: true },
+    orderBy: { weekday: 'asc' },
+  },
+} as const;
 
 @Injectable()
 export class ClinicsService {
@@ -43,25 +60,8 @@ export class ClinicsService {
           },
         },
         select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          document: true,
-          createdAt: true,
-          businessHours: {
-            select: { weekday: true, opensAt: true, closesAt: true },
-            orderBy: { weekday: 'asc' },
-          },
-          users: {
-            select: {
-              id: true,
-              tenantId: true,
-              name: true,
-              email: true,
-              role: true,
-            },
-          },
+          ...CLINIC_DETAILS_SELECT,
+          users: { select: USER_PROFILE_SELECT },
         },
       });
 
@@ -76,5 +76,12 @@ export class ClinicsService {
       }
       throw error;
     }
+  }
+
+  /** Clínica do tenant autenticado. */
+  findCurrent(tenantId: string): Promise<ClinicDetails> {
+    return this.prisma
+      .forTenant(tenantId)
+      .clinic.findFirstOrThrow({ select: CLINIC_DETAILS_SELECT });
   }
 }

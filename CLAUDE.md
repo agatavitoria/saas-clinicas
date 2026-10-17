@@ -40,12 +40,20 @@ As subpastas NÃO devem ter `.git` próprio.
 - Validação no backend: `class-validator` + `class-transformer` (ValidationPipe global)
 - Senhas: hash com `argon2`
 - UI do frontend: Vuetify (Material Design 3), integrado via `vite-plugin-vuetify`
+- Autenticação: JWT em cookies httpOnly. O access token dura 15 minutos e leva
+  `sub`, `tenantId` e `role`. O refresh token é rotacionado, guardado como
+  hash na tabela `RefreshToken` e tem detecção de reuso.
+- API sob o prefixo `/api`; o frontend acessa via proxy do Nuxt (`/api/**`)
 
-## Decisões ainda em aberto
+## Padrões de código
 
-Pergunte antes de escolher:
-
-- Estratégia de autenticação
+- Backend: todas as rotas exigem login (guard global `JwtAuthGuard`); rotas
+  abertas usam `@Public()`. O usuário vem de `@CurrentUser()`.
+- Acesso a dados de um usuário autenticado sempre via
+  `prisma.forTenant(user.tenantId)`. O `prisma` sem escopo fica restrito a
+  login, refresh e cadastro de clínica.
+- Frontend: chamadas à API via `useApi()`, que renova a sessão quando recebe
+  401. Páginas logadas usam `definePageMeta({ layout: 'dashboard', middleware: 'auth' })`.
 
 ## Convenções
 
@@ -61,7 +69,7 @@ Raiz (não tem `package.json`):
 - `make install` — `npm install` no backend e no frontend
 - `make up [back|front]` — sobe banco + backend + frontend (ou só um deles)
 - `make db` / `make db-down` — sobe/para o Postgres
-- `make migrate` — cria/aplica migrations no banco de desenvolvimento
+- `make migrate` — cria/aplica migrations no banco de desenvolvimento (e regenera o client)
 
 Backend (`saas-clinicas-backend/`, copie `.env.example` para `.env`):
 - `npm run start:dev` — servidor em modo desenvolvimento

@@ -1,4 +1,4 @@
-import type { UserRole } from '../../generated/prisma/enums.js';
+import type { UserProfile } from '../../auth/auth-user.js';
 
 export interface BusinessHourResponse {
   weekday: number;
@@ -6,21 +6,17 @@ export interface BusinessHourResponse {
   closesAt: string;
 }
 
+export interface ClinicDetails {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  document: string | null;
+  businessHours: BusinessHourResponse[];
+  createdAt: Date;
+}
+
 export interface ClinicResponse {
-  clinic: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    document: string | null;
-    businessHours: BusinessHourResponse[];
-    createdAt: Date;
-  };
-  admin: {
-    id: string;
-    tenantId: string;
-    name: string;
-    email: string;
-    role: UserRole;
-  };
+  clinic: ClinicDetails;
+  admin: UserProfile;
 }

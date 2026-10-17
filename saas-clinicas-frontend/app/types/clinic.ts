@@ -1,3 +1,5 @@
+import type { UserProfile } from './auth'
+
 /** Espelha o CreateClinicDto do backend (POST /clinics). */
 export interface CreateClinicPayload {
   clinic: {
@@ -23,23 +25,19 @@ export interface BusinessHour {
   closesAt: string
 }
 
+export interface ClinicDetails {
+  id: string
+  name: string
+  email: string
+  phone: string
+  document: string | null
+  businessHours: BusinessHour[]
+  createdAt: string
+}
+
 export interface ClinicResponse {
-  clinic: {
-    id: string
-    name: string
-    email: string
-    phone: string
-    document: string | null
-    businessHours: BusinessHour[]
-    createdAt: string
-  }
-  admin: {
-    id: string
-    tenantId: string
-    name: string
-    email: string
-    role: 'ADMIN' | 'PROFESSIONAL' | 'RECEPTION'
-  }
+  clinic: ClinicDetails
+  admin: UserProfile
 }
 
 /** Estado do formulário de cadastro (antes de virar payload). */

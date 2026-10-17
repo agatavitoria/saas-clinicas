@@ -37,7 +37,7 @@ db-down:
 
 # Cria/aplica migrations no banco de desenvolvimento
 migrate: db
-	@cd $(BACKEND_DIR) && npx prisma migrate dev
+	@cd $(BACKEND_DIR) && npx prisma migrate dev && npx prisma generate
 
 # Alvos vazios para que `back` e `front` funcionem como argumentos de `up`
 back front:

@@ -9,6 +9,17 @@
           SaaS Clínicas
         </NuxtLink>
       </v-app-bar-title>
+
+      <template #append>
+        <v-btn
+          to="/login"
+          variant="text"
+          prepend-icon="mdi-login"
+          class="me-2"
+        >
+          Entrar
+        </v-btn>
+      </template>
     </v-app-bar>
 
     <v-main class="bg-background">

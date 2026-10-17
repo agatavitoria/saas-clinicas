@@ -16,6 +16,7 @@ const LAST_STEP = STEPS.length
 const ADMIN_STEP = 3
 
 const api = useApi()
+const { setUser } = useAuth()
 const { smAndDown } = useDisplay()
 
 const step = ref(1)
@@ -44,10 +45,6 @@ function back() {
   step.value--
 }
 
-function statusOf(error: unknown): number | undefined {
-  return (error as { statusCode?: number })?.statusCode
-}
-
 function showError(text: string) {
   snackbar.text = text
   snackbar.show = true
@@ -60,6 +57,8 @@ async function submit() {
       method: 'POST',
       body: toCreateClinicPayload(form),
     })
+    // O backend já abre a sessão do administrador no cadastro
+    setUser(created.value.admin)
   }
   catch (error) {
     const status = statusOf(error)
@@ -88,10 +87,12 @@ async function submit() {
         <v-icon icon="mdi-check-circle" color="success" size="72" class="mb-4" />
         <h1 class="text-h5 font-weight-bold mb-2">Clínica cadastrada!</h1>
         <p class="text-body-1 text-medium-emphasis mb-6">
-          <strong>{{ created.clinic.name }}</strong> está pronta. Em breve você
-          poderá entrar com o e-mail <strong>{{ created.admin.email }}</strong>.
+          <strong>{{ created.clinic.name }}</strong> está pronta. Nas próximas
+          vezes, entre com o e-mail <strong>{{ created.admin.email }}</strong>.
         </p>
-        <v-btn color="primary" to="/" variant="flat">Voltar ao início</v-btn>
+        <v-btn color="primary" to="/painel" variant="flat" size="large" append-icon="mdi-arrow-right">
+          Ir para o painel
+        </v-btn>
       </v-card>
     </template>
 

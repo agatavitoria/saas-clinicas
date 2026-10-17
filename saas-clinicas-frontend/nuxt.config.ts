@@ -1,5 +1,8 @@
 import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
+/** Endereço do backend usado pelo proxy /api (lido no build/dev). */
+const API_URL = process.env.API_URL ?? 'http://localhost:3001'
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -37,11 +40,14 @@ export default defineNuxtConfig({
     },
   },
 
-  runtimeConfig: {
-    public: {
-      // Sobrescreva com NUXT_PUBLIC_API_BASE
-      apiBase: 'http://localhost:3001',
-    },
+  routeRules: {
+    // O front fala só com /api; os cookies de sessão ficam na mesma origem
+    '/api/**': { proxy: `${API_URL}/api/**` },
+    // A área logada depende do refresh token, que só o navegador envia
+    // (cookie restrito a /api/auth); por isso renderiza no cliente
+    '/painel': { ssr: false },
+    '/painel/**': { ssr: false },
+    '/login': { ssr: false },
   },
 
   devServer: { port: 3000 },
