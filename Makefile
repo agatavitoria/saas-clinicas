@@ -4,7 +4,12 @@ FRONTEND_DIR := saas-clinicas-frontend
 # Permite `make up`, `make up back` e `make up front`
 TARGET := $(filter-out up,$(MAKECMDGOALS))
 
-.PHONY: up back front db db-down migrate
+.PHONY: install up back front db db-down migrate
+
+# Instala as dependências dos dois projetos (a raiz não tem package.json)
+install:
+	@cd $(BACKEND_DIR) && npm install
+	@cd $(FRONTEND_DIR) && npm install
 
 up:
 ifeq ($(TARGET),)

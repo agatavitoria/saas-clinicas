@@ -57,7 +57,8 @@ Pergunte antes de escolher:
 
 ## Comandos
 
-Raiz:
+Raiz (não tem `package.json`):
+- `make install` — `npm install` no backend e no frontend
 - `make up [back|front]` — sobe banco + backend + frontend (ou só um deles)
 - `make db` / `make db-down` — sobe/para o Postgres
 - `make migrate` — cria/aplica migrations no banco de desenvolvimento
