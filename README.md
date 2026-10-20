@@ -32,6 +32,49 @@ agenda, e nunca enxerga dados de outra clínica.
 - Profissionais com agenda própria
 - Agendamentos com status: agendado, confirmado, cancelado, realizado, faltou
 
+Os temas de plataforma SaaS que ainda faltam estão no [Roadmap](#roadmap).
+
+## Roadmap
+
+Recursos que um SaaS em produção teria e que ainda serão desenvolvidos. A
+ordem é uma sugestão de prioridade. Auditoria e LGPD vêm primeiro porque o
+sistema guarda dados de saúde.
+
+- [ ] **Auditoria.** Registrar quem fez o quê e quando: login, criação e
+  inativação de usuários, mudanças na clínica e, no futuro, acesso a dados de
+  pacientes. Cada registro tem o `tenantId` da clínica, o usuário que agiu, a
+  ação e a data. O master vê o log de qualquer clínica; o admin, só o da
+  própria.
+- [ ] **LGPD.**
+  - Exportar todos os dados de uma clínica (portabilidade).
+  - Excluir os dados definitivamente quando o cliente pedir (direito ao
+    esquecimento), separando isso da simples inativação.
+  - Política de retenção e registro de consentimento dos pacientes.
+  - Dados de saúde são dados sensíveis pela lei.
+- [ ] **Row-Level Security no Postgres.** Uma segunda camada de isolamento,
+  aplicada pelo próprio banco: cada conexão informa o tenant (por exemplo,
+  `SET app.tenant_id`), e as policies bloqueiam linhas de outras clínicas
+  mesmo que uma consulta escape do `forTenant`.
+- [ ] **Convite por e-mail e recuperação de senha.**
+  - Substituir a senha provisória repassada à mão por um link de convite com
+    validade.
+  - "Esqueci minha senha" com token de uso único.
+  - Exige um serviço de envio de e-mail.
+- [ ] **Planos e cobrança.**
+  - Assinaturas com um provedor de pagamento (Stripe, Asaas etc.).
+  - Limites por plano, como número de usuários e de profissionais.
+  - Período de teste.
+  - Suspensão automática por falta de pagamento, reaproveitando a inativação
+    de clínica que já existe.
+- [ ] **Observabilidade por tenant.**
+  - Logs estruturados com o `tenantId`.
+  - Métricas de uso por clínica e alertas.
+  - Limite de requisições por clínica, para que uma não sobrecarregue as
+    outras.
+- [ ] **Personalização por tenant.** Logo, cores e preferências de cada
+  clínica, como fuso horário, duração padrão da consulta e textos de
+  lembrete.
+
 ## Papéis
 
 | Quem                    | Onde entra        | O que pode fazer                                            |
