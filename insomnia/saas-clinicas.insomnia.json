@@ -1,0 +1,1045 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-10-20T23:52:12.000Z",
+  "__export_source": "saas-clinicas",
+  "resources": [
+    {
+      "_id": "wrk_saas_clinicas",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "SaaS Clínicas",
+      "scope": "collection",
+      "description": "API do SaaS Clínicas. Faça login (clínica ou master) antes das demais chamadas: os cookies de sessão são guardados automaticamente."
+    },
+    {
+      "_id": "env_saas_clinicas_base",
+      "_type": "environment",
+      "parentId": "wrk_saas_clinicas",
+      "name": "Base Environment",
+      "data": {
+        "baseUrl": "http://localhost:3001/api",
+        "masterLogin": "admin",
+        "masterPassword": "admin",
+        "clinicEmail": "admin@clinica.com",
+        "clinicPassword": "troque-pela-senha",
+        "newPassword": "nova-senha-123",
+        "clinicId": "cole-aqui-o-id-da-clinica",
+        "clinicName": "Clínica Exemplo",
+        "userId": "cole-aqui-o-id-do-usuario"
+      },
+      "dataPropertyOrder": {
+        "&": [
+          "baseUrl",
+          "masterLogin",
+          "masterPassword",
+          "clinicEmail",
+          "clinicPassword",
+          "newPassword",
+          "clinicId",
+          "clinicName",
+          "userId"
+        ]
+      },
+      "color": null,
+      "isPrivate": false
+    },
+    {
+      "_id": "env_saas_clinicas_local",
+      "_type": "environment",
+      "parentId": "env_saas_clinicas_base",
+      "name": "Local",
+      "data": {
+        "baseUrl": "http://localhost:3001/api"
+      },
+      "color": "#00696B",
+      "isPrivate": false
+    },
+    {
+      "_id": "jar_saas_clinicas",
+      "_type": "cookie_jar",
+      "parentId": "wrk_saas_clinicas",
+      "name": "Default Jar",
+      "cookies": []
+    },
+    {
+      "_id": "fld_health",
+      "_type": "request_group",
+      "parentId": "wrk_saas_clinicas",
+      "name": "Saúde",
+      "description": "",
+      "environment": {},
+      "metaSortKey": -100
+    },
+    {
+      "_id": "req_saas_001",
+      "_type": "request",
+      "parentId": "fld_health",
+      "name": "Health check",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/health",
+      "description": "Rota pública.",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -200,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "fld_clinic",
+      "_type": "request_group",
+      "parentId": "wrk_saas_clinicas",
+      "name": "Clínica",
+      "description": "Rotas do usuário de clínica. Comece pelo **Login**.",
+      "environment": {},
+      "metaSortKey": -300
+    },
+    {
+      "_id": "fld_clinic_auth",
+      "_type": "request_group",
+      "parentId": "fld_clinic",
+      "name": "Autenticação",
+      "description": "",
+      "environment": {},
+      "metaSortKey": -400
+    },
+    {
+      "_id": "req_saas_002",
+      "_type": "request",
+      "parentId": "fld_clinic_auth",
+      "name": "Login",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/auth/login",
+      "description": "Grava os cookies `access_token` e `refresh_token`. Com senha provisória, as demais rotas respondem 403 PASSWORD_CHANGE_REQUIRED até a troca.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -500,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.clinicEmail }}\",\n  \"password\": \"{{ _.clinicPassword }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_saas_003",
+      "_type": "request",
+      "parentId": "fld_clinic_auth",
+      "name": "Quem sou eu",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/auth/me",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -600,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_004",
+      "_type": "request",
+      "parentId": "fld_clinic_auth",
+      "name": "Trocar senha",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/auth/change-password",
+      "description": "Obrigatória no primeiro acesso. Depois de trocar, atualize `clinicPassword` no ambiente.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -700,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"currentPassword\": \"{{ _.clinicPassword }}\",\n  \"newPassword\": \"{{ _.newPassword }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_saas_005",
+      "_type": "request",
+      "parentId": "fld_clinic_auth",
+      "name": "Renovar sessão",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/auth/refresh",
+      "description": "Usa o cookie `refresh_token` e o rotaciona.",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -800,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_006",
+      "_type": "request",
+      "parentId": "fld_clinic_auth",
+      "name": "Logout",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/auth/logout",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -900,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "fld_clinic_data",
+      "_type": "request_group",
+      "parentId": "fld_clinic",
+      "name": "Dados da clínica",
+      "description": "",
+      "environment": {},
+      "metaSortKey": -1000
+    },
+    {
+      "_id": "req_saas_007",
+      "_type": "request",
+      "parentId": "fld_clinic_data",
+      "name": "Minha clínica",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/clinics/me",
+      "description": "Inclui o status de exclusão (`deletion`).",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -1100,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "fld_clinic_team",
+      "_type": "request_group",
+      "parentId": "fld_clinic",
+      "name": "Equipe",
+      "description": "Criar, desativar e redefinir senha exigem papel ADMIN.",
+      "environment": {},
+      "metaSortKey": -1200
+    },
+    {
+      "_id": "req_saas_008",
+      "_type": "request",
+      "parentId": "fld_clinic_team",
+      "name": "Listar equipe",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/users",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -1300,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_009",
+      "_type": "request",
+      "parentId": "fld_clinic_team",
+      "name": "Criar usuário",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/users",
+      "description": "Papéis: ADMIN, PROFESSIONAL, RECEPTION. O usuário troca a senha no primeiro acesso.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -1400,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Rafa Recepção\",\n  \"email\": \"rafa@clinica.com\",\n  \"role\": \"RECEPTION\",\n  \"temporaryPassword\": \"provisoria-123\"\n}"
+      }
+    },
+    {
+      "_id": "req_saas_010",
+      "_type": "request",
+      "parentId": "fld_clinic_team",
+      "name": "Desativar usuário",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/users/{{ _.userId }}/status",
+      "description": "Encerra as sessões do usuário na hora.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -1500,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"active\": false\n}"
+      }
+    },
+    {
+      "_id": "req_saas_011",
+      "_type": "request",
+      "parentId": "fld_clinic_team",
+      "name": "Reativar usuário",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/users/{{ _.userId }}/status",
+      "description": "",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -1600,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"active\": true\n}"
+      }
+    },
+    {
+      "_id": "req_saas_012",
+      "_type": "request",
+      "parentId": "fld_clinic_team",
+      "name": "Redefinir senha",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/users/{{ _.userId }}/reset-password",
+      "description": "",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -1700,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"temporaryPassword\": \"provisoria-456\"\n}"
+      }
+    },
+    {
+      "_id": "fld_clinic_audit",
+      "_type": "request_group",
+      "parentId": "fld_clinic",
+      "name": "Auditoria",
+      "description": "Só ADMIN.",
+      "environment": {},
+      "metaSortKey": -1800
+    },
+    {
+      "_id": "req_saas_013",
+      "_type": "request",
+      "parentId": "fld_clinic_audit",
+      "name": "Histórico da clínica",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/audit-logs",
+      "description": "Filtros opcionais (ative na aba Query). Para a próxima página, use o `nextCursor` da resposta como `cursor`.",
+      "headers": [],
+      "parameters": [
+        {
+          "name": "limit",
+          "value": "50",
+          "disabled": false
+        },
+        {
+          "name": "action",
+          "value": "user.deactivated",
+          "disabled": true
+        },
+        {
+          "name": "from",
+          "value": "2026-01-01T00:00:00.000Z",
+          "disabled": true
+        },
+        {
+          "name": "to",
+          "value": "2026-12-31T23:59:59.999Z",
+          "disabled": true
+        },
+        {
+          "name": "actorId",
+          "value": "{{ _.userId }}",
+          "disabled": true
+        },
+        {
+          "name": "cursor",
+          "value": "",
+          "disabled": true
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1900,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "fld_clinic_lgpd",
+      "_type": "request_group",
+      "parentId": "fld_clinic",
+      "name": "LGPD",
+      "description": "Só ADMIN.",
+      "environment": {},
+      "metaSortKey": -2000
+    },
+    {
+      "_id": "req_saas_014",
+      "_type": "request",
+      "parentId": "fld_clinic_lgpd",
+      "name": "Exportar dados",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/clinics/me/export",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -2100,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_015",
+      "_type": "request",
+      "parentId": "fld_clinic_lgpd",
+      "name": "Solicitar exclusão",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/clinics/me/deletion-request",
+      "description": "O nome precisa ser exatamente o da clínica. O master confirma; depois a clínica fica somente leitura por 30 dias.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -2200,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"confirmationName\": \"{{ _.clinicName }}\",\n  \"reason\": \"Encerramos as atividades\"\n}"
+      }
+    },
+    {
+      "_id": "req_saas_016",
+      "_type": "request",
+      "parentId": "fld_clinic_lgpd",
+      "name": "Cancelar exclusão",
+      "method": "DELETE",
+      "url": "{{ _.baseUrl }}/clinics/me/deletion-request",
+      "description": "Funciona antes da confirmação e durante a carência.",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -2300,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "fld_master",
+      "_type": "request_group",
+      "parentId": "wrk_saas_clinicas",
+      "name": "Master",
+      "description": "Rotas do admin master. Comece pelo **Login** (seed de desenvolvimento: admin / admin).",
+      "environment": {},
+      "metaSortKey": -2400
+    },
+    {
+      "_id": "fld_master_auth",
+      "_type": "request_group",
+      "parentId": "fld_master",
+      "name": "Autenticação",
+      "description": "",
+      "environment": {},
+      "metaSortKey": -2500
+    },
+    {
+      "_id": "req_saas_017",
+      "_type": "request",
+      "parentId": "fld_master_auth",
+      "name": "Login",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/platform/auth/login",
+      "description": "Grava os cookies `platform_access_token` e `platform_refresh_token`.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -2600,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.masterLogin }}\",\n  \"password\": \"{{ _.masterPassword }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_saas_018",
+      "_type": "request",
+      "parentId": "fld_master_auth",
+      "name": "Quem sou eu",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/platform/auth/me",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -2700,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_019",
+      "_type": "request",
+      "parentId": "fld_master_auth",
+      "name": "Renovar sessão",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/platform/auth/refresh",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -2800,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_020",
+      "_type": "request",
+      "parentId": "fld_master_auth",
+      "name": "Logout",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/platform/auth/logout",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -2900,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "fld_master_clinics",
+      "_type": "request_group",
+      "parentId": "fld_master",
+      "name": "Clínicas",
+      "description": "",
+      "environment": {},
+      "metaSortKey": -3000
+    },
+    {
+      "_id": "req_saas_021",
+      "_type": "request",
+      "parentId": "fld_master_clinics",
+      "name": "Listar clínicas",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/platform/clinics",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -3100,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_022",
+      "_type": "request",
+      "parentId": "fld_master_clinics",
+      "name": "Criar clínica",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/platform/clinics",
+      "description": "Copie o `clinic.id` da resposta para `clinicId` no ambiente. weekday: 0 = domingo ... 6 = sábado.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -3200,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"clinic\": {\n    \"name\": \"Clínica Exemplo\",\n    \"email\": \"contato@clinica.com\",\n    \"phone\": \"11999998888\",\n    \"document\": \"11222333000181\"\n  },\n  \"businessHours\": [\n    {\n      \"weekday\": 1,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 2,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 3,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 4,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 5,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    }\n  ],\n  \"admin\": {\n    \"name\": \"Ana Souza\",\n    \"email\": \"{{ _.clinicEmail }}\",\n    \"temporaryPassword\": \"{{ _.clinicPassword }}\"\n  }\n}"
+      }
+    },
+    {
+      "_id": "req_saas_023",
+      "_type": "request",
+      "parentId": "fld_master_clinics",
+      "name": "Detalhe da clínica",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -3300,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_024",
+      "_type": "request",
+      "parentId": "fld_master_clinics",
+      "name": "Desativar clínica",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/status",
+      "description": "Bloqueia toda a equipe na hora.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -3400,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"active\": false\n}"
+      }
+    },
+    {
+      "_id": "req_saas_025",
+      "_type": "request",
+      "parentId": "fld_master_clinics",
+      "name": "Reativar clínica",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/status",
+      "description": "",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -3500,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"active\": true\n}"
+      }
+    },
+    {
+      "_id": "req_saas_026",
+      "_type": "request",
+      "parentId": "fld_master_clinics",
+      "name": "Exportar dados",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/export",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -3600,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_027",
+      "_type": "request",
+      "parentId": "fld_master_clinics",
+      "name": "Histórico da clínica",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/audit-logs",
+      "description": "",
+      "headers": [],
+      "parameters": [
+        {
+          "name": "limit",
+          "value": "50",
+          "disabled": false
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -3700,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "fld_master_deletion",
+      "_type": "request_group",
+      "parentId": "fld_master",
+      "name": "Exclusão (LGPD)",
+      "description": "Decisões sobre o pedido de exclusão feito pelo admin da clínica.",
+      "environment": {},
+      "metaSortKey": -3800
+    },
+    {
+      "_id": "req_saas_028",
+      "_type": "request",
+      "parentId": "fld_master_deletion",
+      "name": "Confirmar exclusão",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/deletion/confirm",
+      "description": "Agenda a exclusão definitiva para daqui a 30 dias; a clínica fica somente leitura.",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -3900,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_029",
+      "_type": "request",
+      "parentId": "fld_master_deletion",
+      "name": "Recusar pedido",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/deletion/reject",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -4000,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_030",
+      "_type": "request",
+      "parentId": "fld_master_deletion",
+      "name": "Cancelar exclusão agendada",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/deletion/cancel",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -4100,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "fld_master_users",
+      "_type": "request_group",
+      "parentId": "fld_master",
+      "name": "Usuários da clínica",
+      "description": "",
+      "environment": {},
+      "metaSortKey": -4200
+    },
+    {
+      "_id": "req_saas_031",
+      "_type": "request",
+      "parentId": "fld_master_users",
+      "name": "Listar usuários",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/users",
+      "description": "",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -4300,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_032",
+      "_type": "request",
+      "parentId": "fld_master_users",
+      "name": "Criar usuário",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/users",
+      "description": "",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -4400,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Dra. Carla\",\n  \"email\": \"carla@clinica.com\",\n  \"role\": \"PROFESSIONAL\",\n  \"temporaryPassword\": \"provisoria-123\"\n}"
+      }
+    },
+    {
+      "_id": "req_saas_033",
+      "_type": "request",
+      "parentId": "fld_master_users",
+      "name": "Desativar usuário",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/users/{{ _.userId }}/status",
+      "description": "",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -4500,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"active\": false\n}"
+      }
+    },
+    {
+      "_id": "req_saas_034",
+      "_type": "request",
+      "parentId": "fld_master_users",
+      "name": "Reativar usuário",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/users/{{ _.userId }}/status",
+      "description": "",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -4600,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"active\": true\n}"
+      }
+    },
+    {
+      "_id": "req_saas_035",
+      "_type": "request",
+      "parentId": "fld_master_users",
+      "name": "Redefinir senha",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/users/{{ _.userId }}/reset-password",
+      "description": "",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -4700,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"temporaryPassword\": \"provisoria-456\"\n}"
+      }
+    },
+    {
+      "_id": "fld_master_audit",
+      "_type": "request_group",
+      "parentId": "fld_master",
+      "name": "Auditoria",
+      "description": "",
+      "environment": {},
+      "metaSortKey": -4800
+    },
+    {
+      "_id": "req_saas_036",
+      "_type": "request",
+      "parentId": "fld_master_audit",
+      "name": "Histórico da plataforma",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/platform/audit-logs",
+      "description": "",
+      "headers": [],
+      "parameters": [
+        {
+          "name": "limit",
+          "value": "50",
+          "disabled": false
+        },
+        {
+          "name": "tenantId",
+          "value": "{{ _.clinicId }}",
+          "disabled": true
+        },
+        {
+          "name": "action",
+          "value": "platform.logged_in",
+          "disabled": true
+        },
+        {
+          "name": "cursor",
+          "value": "",
+          "disabled": true
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -4900,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    }
+  ]
+}

@@ -135,6 +135,7 @@ saas-clinicas/
 │       ├── pages/            # /, /login, /trocar-senha, /painel/**, /master/**
 │       └── utils/            # máscaras, validações, horários, erros, ações do log
 ├── docker/                   # script de inicialização do Postgres
+├── insomnia/                 # coleção do Insomnia para testar a API
 ├── docker-compose.yml
 └── Makefile
 ```
@@ -568,6 +569,9 @@ Os e2e cobrem, entre outros cenários:
 - o Row-Level Security, que barra o acesso a outra clínica mesmo com SQL cru.
 
 ## API
+
+Para testar no Insomnia, importe a coleção em [`insomnia/`](insomnia/README.md),
+que traz todas as rotas e um roteiro de uso.
 
 Todas as rotas ficam sob o prefixo `/api`. Os erros de regra de negócio
 trazem um `code` estável (por exemplo, `EMAIL_IN_USE` ou `USER_INACTIVE`),
