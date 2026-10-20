@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
+import { AuditService } from '../audit/audit.service.js';
 import { conflict } from '../common/api-error.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { UserRole } from '../generated/prisma/enums.js';
@@ -9,21 +10,23 @@ import { TEAM_MEMBER_SELECT, type TeamMember } from './team-member.js';
 
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
 
-type TenantDb = ReturnType<PrismaService['forTenant']>;
-
-const revokeSessions = (db: TenantDb, userId: string) =>
-  db.refreshToken.updateMany({
-    where: { userId, revokedAt: null },
-    data: { revokedAt: new Date() },
-  });
+const userTarget = (user: { id: string; name: string }) => ({
+  type: 'User',
+  id: user.id,
+  label: user.name,
+});
 
 /**
  * Gestão da equipe de uma clínica. Toda operação recebe o tenant e usa o
  * client restrito a ele: um id de outra clínica simplesmente não existe.
+ * Cada alteração é auditada na mesma transação.
  */
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   findAll(tenantId: string): Promise<TeamMember[]> {
     return this.prisma.forTenant(tenantId).user.findMany({
@@ -33,17 +36,26 @@ export class UsersService {
   }
 
   async create(tenantId: string, dto: CreateUserDto): Promise<TeamMember> {
+    const passwordHash = await argon2.hash(dto.temporaryPassword);
+
     try {
-      return await this.prisma.forTenant(tenantId).user.create({
-        data: {
-          tenantId,
-          name: dto.name,
-          email: dto.email,
-          role: dto.role,
-          passwordHash: await argon2.hash(dto.temporaryPassword),
-          mustChangePassword: true,
-        },
-        select: TEAM_MEMBER_SELECT,
+      return await this.prisma.forTenant(tenantId).$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            tenantId,
+            name: dto.name,
+            email: dto.email,
+            role: dto.role,
+            passwordHash,
+            mustChangePassword: true,
+          },
+          select: TEAM_MEMBER_SELECT,
+        });
+        await this.audit.log(tx, 'user.created', {
+          target: userTarget(user),
+          metadata: { role: user.role },
+        });
+        return user;
       });
     } catch (error) {
       if (
@@ -67,7 +79,12 @@ export class UsersService {
     actorUserId?: string,
   ): Promise<TeamMember> {
     const db = this.prisma.forTenant(tenantId);
-    const user = await this.findOrFail(tenantId, userId);
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: TEAM_MEMBER_SELECT,
+    });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.active === active) return user;
 
     if (!active) {
       if (userId === actorUserId) {
@@ -76,7 +93,7 @@ export class UsersService {
           'You cannot deactivate yourself',
         );
       }
-      if (user.role === UserRole.ADMIN && user.active) {
+      if (user.role === UserRole.ADMIN) {
         const activeAdmins = await db.user.count({
           where: { role: UserRole.ADMIN, active: true },
         });
@@ -89,15 +106,28 @@ export class UsersService {
       }
     }
 
-    const [updated] = await db.$transaction([
-      db.user.update({
+    return db.$transaction(async (tx) => {
+      const updated = await tx.user.update({
         where: { id: userId },
         data: { active },
         select: TEAM_MEMBER_SELECT,
-      }),
-      ...(active ? [] : [revokeSessions(db, userId)]),
-    ]);
-    return updated;
+      });
+      if (!active) {
+        await tx.refreshToken.updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+      await this.audit.log(
+        tx,
+        active ? 'user.reactivated' : 'user.deactivated',
+        {
+          target: userTarget(updated),
+          metadata: { active: { from: !active, to: active } },
+        },
+      );
+      return updated;
+    });
   }
 
   /** Define uma nova senha provisória e encerra as sessões do usuário. */
@@ -106,29 +136,25 @@ export class UsersService {
     userId: string,
     temporaryPassword: string,
   ): Promise<TeamMember> {
-    await this.findOrFail(tenantId, userId);
-
     const db = this.prisma.forTenant(tenantId);
-    const [updated] = await db.$transaction([
-      db.user.update({
-        where: { id: userId },
-        data: {
-          passwordHash: await argon2.hash(temporaryPassword),
-          mustChangePassword: true,
-        },
-        select: TEAM_MEMBER_SELECT,
-      }),
-      revokeSessions(db, userId),
-    ]);
-    return updated;
-  }
+    const exists = await db.user.count({ where: { id: userId } });
+    if (!exists) throw new NotFoundException('User not found');
 
-  private async findOrFail(tenantId: string, userId: string) {
-    const user = await this.prisma.forTenant(tenantId).user.findUnique({
-      where: { id: userId },
-      select: { role: true, active: true },
+    const passwordHash = await argon2.hash(temporaryPassword);
+    return db.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: userId },
+        data: { passwordHash, mustChangePassword: true },
+        select: TEAM_MEMBER_SELECT,
+      });
+      await tx.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await this.audit.log(tx, 'user.password_reset', {
+        target: userTarget(updated),
+      });
+      return updated;
     });
-    if (!user) throw new NotFoundException('User not found');
-    return user;
   }
 }

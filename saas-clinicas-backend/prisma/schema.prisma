@@ -17,15 +17,21 @@ enum UserRole {
 
 /// A clínica é o tenant: toda entidade de negócio aponta para ela via `tenantId`.
 model Clinic {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  email     String
-  phone     String
-  document  String?
+  id                    String    @id @default(uuid()) @db.Uuid
+  name                  String
+  email                 String
+  phone                 String
+  document              String?
   /// Clínica inativa bloqueia o acesso de todos os usuários dela
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  active                Boolean   @default(true)
+  /// LGPD: pedido de exclusão feito pelo admin da clínica
+  deletionRequestedAt   DateTime?
+  deletionRequestedById String?   @db.Uuid
+  deletionReason        String?
+  /// Preenchido quando o master confirma; a exclusão definitiva ocorre nesta data
+  deletionScheduledFor  DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   businessHours ClinicBusinessHour[]
   users         User[]
@@ -117,4 +123,38 @@ model PlatformRefreshToken {
 
   @@index([adminId])
   @@map("platform_refresh_tokens")
+}
+
+enum AuditActorType {
+  USER
+  PLATFORM_ADMIN
+  SYSTEM
+}
+
+/// Log de auditoria: só aceita inserção (uma trigger bloqueia UPDATE/DELETE,
+/// salvo em manutenção). O tenantId não tem FK de propósito: o log sobrevive,
+/// anonimizado, à exclusão da clínica.
+model AuditLog {
+  id          String         @id @default(uuid()) @db.Uuid
+  tenantId    String?        @db.Uuid
+  actorType   AuditActorType
+  actorId     String?        @db.Uuid
+  /// Nome do ator no momento do evento
+  actorLabel  String
+  /// Formato recurso.verbo_no_passado, ex.: user.deactivated
+  action      String
+  targetType  String?
+  targetId    String?        @db.Uuid
+  targetLabel String?
+  /// Só ids, papéis, booleanos e campos alterados; nunca dados pessoais
+  metadata    Json           @default("{}")
+  ip          String?
+  userAgent   String?
+  occurredAt  DateTime       @default(now())
+
+  @@index([tenantId, occurredAt(sort: Desc), id])
+  @@index([occurredAt(sort: Desc), id])
+  @@index([action])
+  @@index([actorId])
+  @@map("audit_logs")
 }

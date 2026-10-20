@@ -5,6 +5,7 @@ export function useAuth() {
   const api = useApi()
   const user = useAuthUser()
   const loaded = useState('auth:loaded', () => false)
+  const clinic = useState('clinic:current', () => null)
 
   /** Carrega o usuário da sessão atual (renovando-a se preciso). */
   async function fetchUser(): Promise<UserProfile | null> {
@@ -50,6 +51,8 @@ export function useAuth() {
   }
 
   function setUser(value: UserProfile | null) {
+    // Outra conta (ou logout): descarta os dados da clínica anterior
+    if (value?.tenantId !== user.value?.tenantId) clinic.value = null
     user.value = value
     loaded.value = true
   }

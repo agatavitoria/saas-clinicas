@@ -18,6 +18,7 @@ watch(admin, (current) => {
 const NAV_ITEMS = [
   { title: 'Clínicas', icon: 'mdi-domain', to: '/master', exact: true },
   { title: 'Nova clínica', icon: 'mdi-plus-circle-outline', to: '/master/clinicas/nova', exact: true },
+  { title: 'Atividades', icon: 'mdi-history', to: '/master/atividades', exact: true },
 ]
 </script>
 

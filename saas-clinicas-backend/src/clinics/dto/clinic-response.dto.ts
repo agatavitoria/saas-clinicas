@@ -1,4 +1,5 @@
 import type { UserProfile } from '../../auth/auth-user.js';
+import type { DeletionInfo } from '../../privacy/deletion-status.js';
 
 export interface BusinessHourResponse {
   weekday: number;
@@ -14,6 +15,7 @@ export interface ClinicDetails {
   document: string | null;
   active: boolean;
   businessHours: BusinessHourResponse[];
+  deletion: DeletionInfo;
   createdAt: Date;
 }
 
@@ -24,6 +26,7 @@ export interface ClinicSummary {
   phone: string;
   active: boolean;
   usersCount: number;
+  deletion: DeletionInfo;
   createdAt: Date;
 }
 

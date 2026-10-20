@@ -22,8 +22,15 @@ export async function createTestApp(): Promise<{
   return { app, prisma: app.get(PrismaService) };
 }
 
-/** Apaga todos os dados (cascade a partir das clínicas e dos admins master). */
+/**
+ * Apaga todos os dados (cascade a partir das clínicas e dos admins master).
+ * O log de auditoria só aceita DELETE em modo de manutenção.
+ */
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
+  await prisma.$transaction([
+    prisma.$executeRaw`SELECT set_config('app.audit_maintenance', 'on', true)`,
+    prisma.auditLog.deleteMany(),
+  ]);
   await prisma.clinic.deleteMany();
   await prisma.platformAdmin.deleteMany();
 }

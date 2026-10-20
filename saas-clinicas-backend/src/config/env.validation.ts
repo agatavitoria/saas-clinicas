@@ -46,6 +46,11 @@ export class EnvironmentVariables {
   @IsBoolean()
   COOKIE_SECURE: boolean = false;
 
+  /** Dias até o IP e o user agent serem apagados dos logs de auditoria. */
+  @IsInt()
+  @Min(1)
+  AUDIT_IP_RETENTION_DAYS: number = 180;
+
   /** Tentativas de login por minuto, por IP. */
   @IsInt()
   @Min(1)

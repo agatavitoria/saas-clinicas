@@ -3,6 +3,7 @@ definePageMeta({ layout: 'dashboard', middleware: ['auth', 'admin'] })
 useHead({ title: 'Equipe · SaaS Clínicas' })
 
 const { user } = useAuth()
+const { readOnly } = useClinic()
 </script>
 
 <template>
@@ -16,7 +17,7 @@ const { user } = useAuth()
     </div>
 
     <v-card elevation="1" class="pa-4">
-      <UsersTable base-path="/users" :current-user-id="user?.id" />
+      <UsersTable base-path="/users" :current-user-id="user?.id" :read-only="readOnly" />
     </v-card>
   </v-container>
 </template>

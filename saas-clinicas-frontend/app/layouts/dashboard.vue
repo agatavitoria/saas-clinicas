@@ -2,6 +2,10 @@
 import { useDisplay } from 'vuetify'
 
 const { user, isAdmin, logout } = useAuth()
+const { refresh: refreshClinic } = useClinic()
+
+// Situação da clínica (ex.: exclusão agendada) para o aviso no topo
+onMounted(refreshClinic)
 const { mdAndUp } = useDisplay()
 
 const drawer = ref(mdAndUp.value)
@@ -19,7 +23,11 @@ watch(user, (current) => {
 const navItems = computed(() => [
   { title: 'Painel', icon: 'mdi-view-dashboard-outline', to: '/painel' },
   ...(isAdmin.value
-    ? [{ title: 'Equipe', icon: 'mdi-account-group-outline', to: '/painel/equipe' }]
+    ? [
+        { title: 'Equipe', icon: 'mdi-account-group-outline', to: '/painel/equipe' },
+        { title: 'Atividades', icon: 'mdi-history', to: '/painel/atividades' },
+        { title: 'Clínica', icon: 'mdi-cog-outline', to: '/painel/clinica' },
+      ]
     : []),
   { title: 'Agenda', icon: 'mdi-calendar-month-outline', soon: true },
   { title: 'Pacientes', icon: 'mdi-account-heart-outline', soon: true },
@@ -120,6 +128,7 @@ async function onLogout() {
     </v-app-bar>
 
     <v-main class="bg-background">
+      <DeletionCountdownBanner />
       <slot />
     </v-main>
   </v-app>

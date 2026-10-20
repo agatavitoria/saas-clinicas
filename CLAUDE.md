@@ -49,7 +49,7 @@ As subpastas NÃO devem ter `.git` próprio.
   O access token dura 15 minutos. O refresh token é rotacionado, guardado
   como hash e tem detecção de reuso. A regra de rotação é compartilhada em
   `src/auth/refresh-token-rotation.ts`.
-- API sob o prefixo `/api`; o frontend acessa via proxy do Nuxt (`/api/**`)
+- API sob o prefixo `/api`; o frontend acessa via proxy do Nuxt (`server/api/[...path].ts`, backend em `NUXT_API_URL`), que fixa o `X-Forwarded-For` com o IP real
 - Não há cadastro público: o master cria as clínicas. O primeiro master é
   criado com `npm run platform:create-admin`.
 
@@ -68,6 +68,20 @@ As subpastas NÃO devem ter `.git` próprio.
   `tenantId` vem do token, exceto nas rotas `/api/platform/clinics/:id/...`
   do master, onde vem da URL. O `prisma` sem escopo fica restrito a login,
   refresh e às rotas do master.
+- Auditoria: toda ação relevante chama `audit.log(tx, 'recurso.verbo', { target })`
+  dentro da transação da própria ação (use transação interativa). Ator e IP vêm
+  do contexto (`nestjs-cls`).
+  - Ações novas entram no catálogo `src/audit/audit-actions.ts` e na tradução
+    `app/utils/audit-actions.ts`.
+  - O `metadata` nunca leva dados pessoais (e-mail, nomes, texto livre).
+  - `audit_logs` é imutável (trigger); só as rotinas de LGPD usam o modo de
+    manutenção.
+- LGPD: exclusão de clínica em duas etapas (admin solicita, master confirma, 30
+  dias de carência); o `PurgeService` exclui e anonimiza os logs.
+  - Na carência a clínica fica somente leitura: o guard bloqueia métodos que
+    não sejam GET/HEAD com `403 CLINIC_READ_ONLY`.
+  - Escritas que precisam funcionar nesse período levam `@AllowDuringDeletion()`.
+  - O admin ou o master podem cancelar a exclusão.
 - Erros de regra de negócio usam os helpers de `src/common/api-error.ts`, com
   um `code` estável que o front traduz em `app/utils/api-errors.ts`.
 - Frontend: chamadas à API via `useApi()`, que renova a sessão certa (clínica

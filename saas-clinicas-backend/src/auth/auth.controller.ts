@@ -15,6 +15,7 @@ import { AuthCookiesService } from './auth-cookies.service.js';
 import type { AuthUser, UserProfile } from './auth-user.js';
 import { TENANT_COOKIES } from './auth.constants.js';
 import { AuthService } from './auth.service.js';
+import { AllowDuringDeletion } from './decorators/allow-during-deletion.decorator.js';
 import { AllowPendingPasswordChange } from './decorators/allow-pending-password-change.decorator.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { Public } from './decorators/public.decorator.js';
@@ -81,6 +82,7 @@ export class AuthController {
   }
 
   @AllowPendingPasswordChange()
+  @AllowDuringDeletion()
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   async changePassword(

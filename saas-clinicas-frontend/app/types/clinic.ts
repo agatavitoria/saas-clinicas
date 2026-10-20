@@ -25,6 +25,16 @@ export interface BusinessHour {
   closesAt: string
 }
 
+export type DeletionStatus = 'NONE' | 'REQUESTED' | 'SCHEDULED'
+
+/** Situação do pedido de exclusão (LGPD). */
+export interface DeletionInfo {
+  status: DeletionStatus
+  requestedAt: string | null
+  scheduledFor: string | null
+  reason: string | null
+}
+
 export interface ClinicDetails {
   id: string
   name: string
@@ -33,6 +43,7 @@ export interface ClinicDetails {
   document: string | null
   active: boolean
   businessHours: BusinessHour[]
+  deletion: DeletionInfo
   createdAt: string
 }
 
@@ -43,6 +54,7 @@ export interface ClinicSummary {
   phone: string
   active: boolean
   usersCount: number
+  deletion: DeletionInfo
   createdAt: string
 }
 

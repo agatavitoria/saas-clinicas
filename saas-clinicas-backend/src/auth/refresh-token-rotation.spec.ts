@@ -39,9 +39,10 @@ function memoryStore() {
       }
     },
     revokeByHash: async (hash) => {
-      for (const token of tokens.values()) {
-        if (token.hash === hash) token.revokedAt ??= new Date();
-      }
+      const token = [...tokens.values()].find((t) => t.hash === hash);
+      if (!token || token.revokedAt) return null;
+      token.revokedAt = new Date();
+      return token.owner;
     },
   };
   return { store, tokens };
@@ -50,11 +51,16 @@ function memoryStore() {
 describe('RefreshTokenRotation', () => {
   let rotation: RefreshTokenRotation<string>;
   let tokens: ReturnType<typeof memoryStore>['tokens'];
+  const onReuseDetected = vi.fn();
 
   beforeEach(() => {
+    onReuseDetected.mockReset();
     const memory = memoryStore();
     tokens = memory.tokens;
-    rotation = new RefreshTokenRotation(memory.store, 7);
+    rotation = new RefreshTokenRotation(memory.store, {
+      ttlDays: 7,
+      onReuseDetected,
+    });
   });
 
   it('stores only the hash of the token', async () => {
@@ -94,6 +100,7 @@ describe('RefreshTokenRotation', () => {
       UnauthorizedException,
     );
     await expect(rotation.consume(otherUser)).resolves.toBe('user-2');
+    expect(onReuseDetected).toHaveBeenCalledWith('user-1');
   });
 
   it('rejects an expired token', async () => {
@@ -114,9 +121,10 @@ describe('RefreshTokenRotation', () => {
     );
   });
 
-  it('revokes a token on logout', async () => {
+  it('revokes a token on logout and returns its owner', async () => {
     const { token } = await rotation.issue('user-1');
-    await rotation.revoke(token);
+    await expect(rotation.revoke(token)).resolves.toBe('user-1');
+    await expect(rotation.revoke(token)).resolves.toBeNull();
 
     await expect(rotation.consume(token)).rejects.toBeInstanceOf(
       UnauthorizedException,

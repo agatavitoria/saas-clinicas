@@ -20,7 +20,14 @@ export interface RefreshTokenStore<TOwner> {
   /** Revoga só se ainda estiver ativo; devolve se revogou. */
   revoke(token: StoredRefreshToken<TOwner>): Promise<boolean>;
   revokeAllOf(owner: TOwner): Promise<void>;
-  revokeByHash(tokenHash: string): Promise<void>;
+  /** Revoga pelo hash e devolve o dono, se o token existia e estava ativo. */
+  revokeByHash(tokenHash: string): Promise<TOwner | null>;
+}
+
+export interface RefreshTokenRotationOptions<TOwner> {
+  ttlDays: number;
+  /** Chamado quando um token já usado reaparece (provável vazamento). */
+  onReuseDetected?: (owner: TOwner) => Promise<void>;
 }
 
 export interface IssuedRefreshToken {
@@ -36,12 +43,12 @@ export interface IssuedRefreshToken {
 export class RefreshTokenRotation<TOwner> {
   constructor(
     private readonly store: RefreshTokenStore<TOwner>,
-    private readonly ttlDays: number,
+    private readonly options: RefreshTokenRotationOptions<TOwner>,
   ) {}
 
   async issue(owner: TOwner): Promise<IssuedRefreshToken> {
     const token = randomBytes(32).toString('base64url');
-    const expiresAt = new Date(Date.now() + this.ttlDays * DAY_IN_MS);
+    const expiresAt = new Date(Date.now() + this.options.ttlDays * DAY_IN_MS);
     await this.store.create(owner, hashToken(token), expiresAt);
     return { token, expiresAt };
   }
@@ -56,6 +63,7 @@ export class RefreshTokenRotation<TOwner> {
     if (stored.revokedAt) {
       // Token já usado reapresentado: assume vazamento
       await this.store.revokeAllOf(stored.owner);
+      await this.options.onReuseDetected?.(stored.owner);
       throw new UnauthorizedException();
     }
     if (stored.expiresAt <= new Date()) throw new UnauthorizedException();
@@ -66,8 +74,9 @@ export class RefreshTokenRotation<TOwner> {
     return stored.owner;
   }
 
-  async revoke(token: string | undefined): Promise<void> {
-    if (token) await this.store.revokeByHash(hashToken(token));
+  /** Revoga o token (logout) e devolve o dono, se havia uma sessão ativa. */
+  async revoke(token: string | undefined): Promise<TOwner | null> {
+    return token ? this.store.revokeByHash(hashToken(token)) : null;
   }
 
   revokeAllOf(owner: TOwner): Promise<void> {

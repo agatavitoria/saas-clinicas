@@ -6,6 +6,8 @@ const props = defineProps<{
   basePath: string
   /** Quem está logado (não pode desativar a si mesmo). */
   currentUserId?: string
+  /** Clínica com exclusão agendada: só consulta. */
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{ changed: [] }>()
@@ -120,7 +122,13 @@ async function copyCredentials() {
         density="compact"
         class="flex-grow-0"
       />
-      <v-btn color="primary" variant="flat" prepend-icon="mdi-account-plus-outline" @click="creating = true">
+      <v-btn
+        v-if="!readOnly"
+        color="primary"
+        variant="flat"
+        prepend-icon="mdi-account-plus-outline"
+        @click="creating = true"
+      >
         Novo usuário
       </v-btn>
     </div>
@@ -186,7 +194,7 @@ async function copyCredentials() {
       </template>
 
       <template #[`item.actions`]="{ item }">
-        <v-menu location="bottom end">
+        <v-menu v-if="!readOnly" location="bottom end">
           <template #activator="{ props: menuProps }">
             <v-btn v-bind="menuProps" icon="mdi-dots-vertical" variant="text" size="small" :aria-label="`Ações para ${item.name}`" />
           </template>

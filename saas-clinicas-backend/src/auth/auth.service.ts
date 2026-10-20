@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'node:crypto';
+import { type AuditActor, SYSTEM_ACTOR } from '../audit/audit-context.js';
+import { AuditService } from '../audit/audit.service.js';
 import { badRequest, forbidden } from '../common/api-error.js';
 import type { EnvironmentVariables } from '../config/env.validation.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -19,6 +21,17 @@ import { RefreshTokenRotation } from './refresh-token-rotation.js';
 export interface Session extends SessionTokens {
   user: UserProfile;
 }
+
+const userActor = (user: {
+  id: string;
+  name: string;
+  tenantId: string;
+}): AuditActor => ({
+  type: 'USER',
+  id: user.id,
+  label: user.name,
+  tenantId: user.tenantId,
+});
 
 interface TenantTokenOwner {
   userId: string;
@@ -39,6 +52,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly audit: AuditService,
     config: ConfigService<EnvironmentVariables, true>,
   ) {
     const revokedNow = () => ({ revokedAt: new Date() });
@@ -80,13 +94,30 @@ export class AuthService {
           });
         },
         revokeByHash: async (tokenHash) => {
-          await prisma.refreshToken.updateMany({
-            where: { tokenHash, revokedAt: null },
-            data: revokedNow(),
+          const token = await prisma.refreshToken.findUnique({
+            where: { tokenHash },
           });
+          if (!token) return null;
+          const { count } = await prisma
+            .forTenant(token.tenantId)
+            .refreshToken.updateMany({
+              where: { id: token.id, revokedAt: null },
+              data: revokedNow(),
+            });
+          return count === 1
+            ? { userId: token.userId, tenantId: token.tenantId }
+            : null;
         },
       },
-      config.get('REFRESH_TOKEN_TTL_DAYS', { infer: true }),
+      {
+        ttlDays: config.get('REFRESH_TOKEN_TTL_DAYS', { infer: true }),
+        onReuseDetected: (owner) =>
+          this.audit.log(
+            prisma.forTenant(owner.tenantId),
+            'auth.session_reuse_detected',
+            { actor: SYSTEM_ACTOR, target: { type: 'User', id: owner.userId } },
+          ),
+      },
     );
   }
 
@@ -108,6 +139,8 @@ export class AuthService {
       password,
     );
     if (!user || !valid) {
+      // TODO(audit): registrar auth.login_failed (só para e-mails de usuários
+      // existentes, para não guardar e-mails digitados por engano)
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -118,7 +151,16 @@ export class AuthService {
     }
 
     const { passwordHash: _, active: __, clinic: ___, ...profile } = user;
-    return this.createSession(profile);
+    const session = await this.createSession(profile);
+    await this.audit.log(
+      this.prisma.forTenant(profile.tenantId),
+      'auth.logged_in',
+      {
+        actor: userActor(profile),
+        target: { type: 'User', id: profile.id, label: profile.name },
+      },
+    );
+    return session;
   }
 
   /** Emite access token e um novo refresh token persistido. */
@@ -164,8 +206,21 @@ export class AuthService {
     return this.createSession(profile);
   }
 
-  logout(refreshToken: string | undefined): Promise<void> {
-    return this.refreshTokens.revoke(refreshToken);
+  async logout(refreshToken: string | undefined): Promise<void> {
+    const owner = await this.refreshTokens.revoke(refreshToken);
+    if (!owner) return;
+
+    const db = this.prisma.forTenant(owner.tenantId);
+    const user = await db.user.findUnique({
+      where: { id: owner.userId },
+      select: { id: true, name: true, tenantId: true },
+    });
+    if (user) {
+      await this.audit.log(db, 'auth.logged_out', {
+        actor: userActor(user),
+        target: { type: 'User', id: user.id, label: user.name },
+      });
+    }
   }
 
   async getProfile(userId: string, tenantId: string): Promise<UserProfile> {
@@ -205,15 +260,22 @@ export class AuthService {
       );
     }
 
-    const profile = await db.user.update({
-      where: { id: auth.userId },
-      data: {
-        passwordHash: await argon2.hash(newPassword),
-        mustChangePassword: false,
-      },
-      select: USER_PROFILE_SELECT,
+    const passwordHash = await argon2.hash(newPassword);
+    const profile = await db.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: auth.userId },
+        data: { passwordHash, mustChangePassword: false },
+        select: USER_PROFILE_SELECT,
+      });
+      await tx.refreshToken.updateMany({
+        where: { userId: auth.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await this.audit.log(tx, 'auth.password_changed', {
+        target: { type: 'User', id: updated.id, label: updated.name },
+      });
+      return updated;
     });
-    await this.refreshTokens.revokeAllOf(auth);
 
     return this.createSession(profile);
   }

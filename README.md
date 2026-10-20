@@ -25,6 +25,16 @@ agenda, e nunca enxerga dados de outra clínica.
   Inativar um usuário ou uma clínica derruba o acesso na hora.
 - **Painel da clínica:** dados de contato, status "aberta agora", horário da
   semana e equipe.
+- **Auditoria:** histórico imutável de quem fez o quê e quando. O admin vê o
+  da própria clínica, em `/painel/atividades`; o master vê o de toda a
+  plataforma, em `/master/atividades`.
+- **LGPD:**
+  - exportação de todos os dados da clínica;
+  - exclusão em duas etapas (o admin solicita e o master confirma), com 30
+    dias de carência. Nesse período o sistema fica somente para consulta,
+    mostra quantos dias faltam e o admin pode cancelar. Depois, o histórico é
+    mantido de forma anônima;
+  - IP apagado dos logs depois de 180 dias.
 
 **Planejado**
 
@@ -40,17 +50,20 @@ Recursos que um SaaS em produção teria e que ainda serão desenvolvidos. A
 ordem é uma sugestão de prioridade. Auditoria e LGPD vêm primeiro porque o
 sistema guarda dados de saúde.
 
-- [ ] **Auditoria.** Registrar quem fez o quê e quando: login, criação e
-  inativação de usuários, mudanças na clínica e, no futuro, acesso a dados de
-  pacientes. Cada registro tem o `tenantId` da clínica, o usuário que agiu, a
-  ação e a data. O master vê o log de qualquer clínica; o admin, só o da
-  própria.
-- [ ] **LGPD.**
-  - Exportar todos os dados de uma clínica (portabilidade).
-  - Excluir os dados definitivamente quando o cliente pedir (direito ao
-    esquecimento), separando isso da simples inativação.
-  - Política de retenção e registro de consentimento dos pacientes.
-  - Dados de saúde são dados sensíveis pela lei.
+- [x] **Auditoria.** Ver [Auditoria](#auditoria). Pendências:
+  - [ ] registrar tentativas de login com falha (`auth.login_failed`), só
+    para e-mails de usuários existentes. Há um `TODO(audit)` no
+    `AuthService`;
+  - [ ] registrar o acesso a dados de pacientes, quando o módulo existir.
+- [x] **LGPD da clínica.** Ver [Privacidade (LGPD)](#privacidade-lgpd).
+  Pendências:
+  - [ ] anonimização de um usuário a pedido dele;
+  - [ ] aceite versionado dos Termos de Uso e do contrato de tratamento de
+    dados;
+  - [ ] exportação em segundo plano, para clínicas grandes;
+  - [ ] LGPD de pacientes: base legal, consentimento e retenção do
+    prontuário (20 anos, pela regra do CFM). Dados de saúde são dados
+    sensíveis pela lei.
 - [ ] **Row-Level Security no Postgres.** Uma segunda camada de isolamento,
   aplicada pelo próprio banco: cada conexão informa o tenant (por exemplo,
   `SET app.tenant_id`), e as policies bloqueiam linhas de outras clínicas
@@ -104,22 +117,25 @@ saas-clinicas/
 │   ├── prisma/               # schema e migrations
 │   ├── scripts/              # create-platform-admin (cria o admin master)
 │   ├── src/
+│   │   ├── audit/            # log de auditoria e contexto da requisição
 │   │   ├── auth/             # sessões, guards, @Public/@Roles/@PlatformRoute
 │   │   ├── clinics/          # dados da clínica
 │   │   ├── common/           # validações e erros compartilhados
 │   │   ├── config/           # validação das variáveis de ambiente
 │   │   ├── platform/         # rotas do admin master (/api/platform)
 │   │   ├── prisma/           # PrismaService e escopo por tenant
+│   │   ├── privacy/          # LGPD: exportação, exclusão e job diário
 │   │   └── users/            # gestão da equipe de uma clínica
 │   └── test/                 # testes e2e
 ├── saas-clinicas-frontend/   # aplicação Nuxt (porta 3000)
+│   ├── server/api/           # proxy /api → backend
 │   └── app/
-│       ├── components/       # formulário de clínica, tabela/diálogos de usuários
+│       ├── components/       # formulário de clínica, usuários, histórico
 │       ├── composables/      # useApi (renova a sessão), useAuth, usePlatformAuth
 │       ├── layouts/          # público, painel da clínica e master
 │       ├── middleware/       # auth, admin, guest, platform-auth, platform-guest
 │       ├── pages/            # /, /login, /trocar-senha, /painel/**, /master/**
-│       └── utils/            # máscaras, validações, horários, mensagens de erro
+│       └── utils/            # máscaras, validações, horários, erros, ações do log
 ├── docker/                   # script de inicialização do Postgres
 ├── docker-compose.yml
 └── Makefile
@@ -162,6 +178,10 @@ erDiagram
         string phone
         string document "CPF ou CNPJ, opcional"
         boolean active "inativa bloqueia toda a equipe"
+        datetime deletionRequestedAt "LGPD: pedido do admin"
+        uuid deletionRequestedById
+        string deletionReason
+        datetime deletionScheduledFor "LGPD: exclusão definitiva"
         datetime createdAt
         datetime updatedAt
     }
@@ -215,6 +235,22 @@ erDiagram
         datetime revokedAt
         datetime createdAt
     }
+
+    audit_logs {
+        uuid id PK
+        uuid tenantId "sem FK: sobrevive à exclusão"
+        enum actorType "USER, PLATFORM_ADMIN, SYSTEM"
+        uuid actorId
+        string actorLabel "nome no momento do evento"
+        string action "ex.: user.deactivated"
+        string targetType
+        uuid targetId
+        string targetLabel
+        json metadata "sem dados pessoais"
+        string ip "apagado após 180 dias"
+        string userAgent
+        datetime occurredAt
+    }
 ```
 
 Como ler o diagrama:
@@ -231,7 +267,11 @@ Como ler o diagrama:
   também leva o `tenantId`, para ser filtrada pela clínica como as demais.
 - **`platform_admins`** e **`platform_refresh_tokens`** são do admin master. Não
   têm `tenantId`, porque não pertencem a nenhuma clínica.
-- Apagar uma clínica apaga em cascata todos os dados dela (`onDelete: Cascade`).
+- **`audit_logs`** só aceita inserção. Não tem chave estrangeira para a
+  clínica, de propósito: quando uma clínica é excluída, os logs dela continuam,
+  anonimizados, como prova do que aconteceu.
+- Apagar uma clínica apaga em cascata todos os dados dela (`onDelete: Cascade`),
+  exceto o log de auditoria.
 
 ## Autenticação
 
@@ -260,8 +300,74 @@ Existem duas sessões independentes, com as mesmas regras:
     `@Public()` ou `@PlatformRoute()`;
   - `@Roles('ADMIN')` restringe as rotas por papel.
 - Cada login aceita até 5 tentativas por minuto por IP.
-- O frontend acessa a API pelo proxy `/api` do próprio Nuxt, para que os
-  cookies fiquem na mesma origem. As áreas logadas renderizam no navegador.
+- O frontend acessa a API pelo proxy `/api` do próprio Nuxt
+  (`server/api/[...path].ts`), para que os cookies fiquem na mesma origem. O
+  proxy descarta o `X-Forwarded-For` enviado pelo navegador e informa o IP
+  real da conexão, para que ninguém forje o IP gravado na auditoria. As áreas
+  logadas renderizam no navegador.
+
+## Auditoria
+
+Segue o formato usado no mercado (WorkOS, AWS CloudTrail e o audit log do
+GitHub): **eventos explícitos com significado de negócio**.
+
+- **Formato:** `ator · ação · alvo · contexto (IP, user agent) · data · metadata`.
+  As ações seguem a convenção `recurso.verbo_no_passado`, por exemplo
+  `user.deactivated` ou `clinic.deletion_confirmed`. O catálogo completo está
+  em `src/audit/audit-actions.ts`.
+- **Na mesma transação:** cada service chama
+  `audit.log(tx, 'user.deactivated', { target })` dentro da transação da ação.
+  Ou a ação e o registro são gravados juntos, ou nenhum dos dois.
+- **Contexto implícito:** ator, IP e user agent vêm do contexto da requisição
+  (`nestjs-cls`, que usa AsyncLocalStorage). Ninguém precisa passar esses
+  dados por parâmetro.
+- **Imutável:** uma trigger no Postgres bloqueia `UPDATE` e `DELETE` em
+  `audit_logs`. A única exceção são as rotinas de LGPD, que ligam
+  `app.audit_maintenance` só dentro da própria transação.
+- **Sem dados pessoais no `metadata`:** só ids, papéis, booleanos e os campos
+  alterados.
+- **Quem vê:**
+
+  | Quem                    | O que vê                                         |
+  | ----------------------- | ------------------------------------------------ |
+  | Admin master            | tudo, de todas as clínicas e da plataforma       |
+  | Administrador (`ADMIN`) | tudo da **própria** clínica                      |
+  | Profissional / Recepção | nada                                             |
+
+## Privacidade (LGPD)
+
+A clínica é a **controladora** dos dados, e a plataforma é a **operadora**. O
+sistema dá à clínica as ferramentas para atender os direitos dos titulares.
+
+- **Exportação (portabilidade):** o admin, em `/painel/clinica`, ou o master
+  baixam um JSON com a clínica, os horários, a equipe (sem hashes de senha) e
+  o histórico de atividades. Cada exportação é registrada no log.
+- **Exclusão em duas etapas:**
+
+  | Situação     | Como chega lá                         | O que acontece                                              |
+  | ------------ | ------------------------------------- | ----------------------------------------------------------- |
+  | `REQUESTED`  | o admin solicita, digitando o nome da clínica | a clínica segue funcionando; o admin ainda pode desistir |
+  | `SCHEDULED`  | o master confirma                     | a exclusão é agendada para daqui a **30 dias** e a clínica fica **somente leitura** |
+  | `NONE`       | o master recusa, ou o master ou o admin cancelam | tudo volta ao normal                             |
+
+- **Somente leitura (carência):** a equipe continua entrando e consultando,
+  e pode exportar os dados.
+  - Qualquer escrita responde `403 CLINIC_READ_ONLY`. As exceções são as rotas
+    com `@AllowDuringDeletion()`: trocar a própria senha e cancelar a exclusão.
+  - Um aviso no topo do painel mostra quantos dias faltam. O admin vê o botão
+    **Cancelar exclusão**; os demais são orientados a falar com ele.
+
+- **Exclusão definitiva:** um job diário (`PurgeService`, às 3h) exclui as
+  clínicas cuja carência terminou, numa única transação:
+  1. anonimiza os logs da clínica: os nomes viram "Removido" e IP, user agent
+     e metadata são apagados;
+  2. apaga a clínica, e com ela a equipe, os horários e as sessões;
+  3. registra `clinic.purged` como prova de que a exclusão foi feita.
+- **Minimização:** IP e user agent são apagados dos logs com mais de
+  `AUDIT_IP_RETENTION_DAYS` dias (padrão 180).
+
+> A parte técnica segue a LGPD, mas regras como prazos de retenção, base
+> legal e o tratamento de dados de pacientes precisam de validação jurídica.
 
 ## Como rodar
 
@@ -302,6 +408,7 @@ Os valores padrão já funcionam com o banco do `docker-compose.yml`.
 | `REFRESH_TOKEN_TTL_DAYS` | `7`                                                      | validade do refresh token    |
 | `COOKIE_SECURE` | `false`                                                          | `true` em produção (HTTPS)   |
 | `LOGIN_RATE_LIMIT` | `5`                                                           | tentativas de login por minuto, por IP |
+| `AUDIT_IP_RETENTION_DAYS` | `180`                                                  | dias até o IP sair dos logs de auditoria |
 
 Depois de copiar o arquivo, troque o `JWT_ACCESS_SECRET` por um valor
 aleatório, gerado com:
@@ -311,7 +418,8 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
 No frontend, o endereço do backend usado pelo proxy `/api` pode ser trocado
-com a variável `API_URL` (padrão `http://localhost:3001`).
+com a variável `NUXT_API_URL` (padrão `http://localhost:3001`). Ela é lida
+quando o servidor inicia, então não exige refazer o build.
 
 ### 3. Subir o banco e aplicar as migrations
 
@@ -415,7 +523,12 @@ Os e2e cobrem, entre outros cenários:
 - um token de clínica não abre rotas do master, e vice-versa;
 - inativar um usuário ou uma clínica derruba a sessão aberta na hora;
 - quem não é administrador não gerencia a equipe;
-- a troca de senha provisória é obrigatória.
+- a troca de senha provisória é obrigatória;
+- uma ação que falha não deixa registro no log, e o log não pode ser alterado;
+- o admin só vê o histórico da própria clínica, e os demais usuários não veem
+  nada;
+- o fluxo completo de exclusão, com logs anonimizados depois da exclusão
+  definitiva.
 
 ## API
 
@@ -438,6 +551,10 @@ que o frontend traduz para uma mensagem em português.
 | POST   | `/api/users`                      | `ADMIN`      | cria usuário com senha provisória           |
 | PATCH  | `/api/users/:id/status`           | `ADMIN`      | `{ active }`: inativa ou reativa            |
 | POST   | `/api/users/:id/reset-password`   | `ADMIN`      | `{ temporaryPassword }`                     |
+| GET    | `/api/audit-logs`                 | `ADMIN`      | histórico da clínica (filtros e cursor)     |
+| GET    | `/api/clinics/me/export`          | `ADMIN`      | exportação dos dados (JSON)                 |
+| POST   | `/api/clinics/me/deletion-request` | `ADMIN`     | `{ confirmationName, reason? }`             |
+| DELETE | `/api/clinics/me/deletion-request` | `ADMIN`     | cancela o pedido ou a exclusão agendada     |
 
 **Admin master**
 
@@ -453,6 +570,16 @@ que o frontend traduz para uma mensagem em português.
 | POST   | `/api/platform/clinics/:id/users`                   | cria usuário                                |
 | PATCH  | `/api/platform/clinics/:id/users/:userId/status`    | inativa ou reativa                          |
 | POST   | `/api/platform/clinics/:id/users/:userId/reset-password` | nova senha provisória                  |
+| GET    | `/api/platform/audit-logs`                          | histórico de toda a plataforma (filtro `tenantId`) |
+| GET    | `/api/platform/clinics/:id/audit-logs`              | histórico de uma clínica                    |
+| GET    | `/api/platform/clinics/:id/export`                  | exportação dos dados (JSON)                 |
+| POST   | `/api/platform/clinics/:id/deletion/confirm`        | confirma o pedido: exclusão em 30 dias      |
+| POST   | `/api/platform/clinics/:id/deletion/reject`         | recusa o pedido                             |
+| POST   | `/api/platform/clinics/:id/deletion/cancel`         | cancela durante a carência e reativa        |
+
+Os históricos aceitam os filtros `action`, `actorId`, `from`, `to`, `limit`
+(até 100) e `cursor`. Para buscar a página seguinte, passe como `cursor` o
+`nextCursor` da página anterior.
 
 ### `POST /api/platform/clinics`
 

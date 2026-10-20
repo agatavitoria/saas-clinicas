@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'node:crypto';
+import { type AuditActor, SYSTEM_ACTOR } from '../audit/audit-context.js';
+import { AuditService } from '../audit/audit.service.js';
 import type { SessionTokens } from '../auth/auth-cookies.service.js';
 import {
   PLATFORM_ADMIN_PROFILE_SELECT,
@@ -18,6 +20,13 @@ export interface PlatformSession extends SessionTokens {
   admin: PlatformAdminProfile;
 }
 
+const adminActor = (admin: PlatformAdminProfile): AuditActor => ({
+  type: 'PLATFORM_ADMIN',
+  id: admin.id,
+  label: admin.name,
+  tenantId: null,
+});
+
 /** Sessões dos administradores da plataforma (master). */
 @Injectable()
 export class PlatformAuthService {
@@ -28,6 +37,7 @@ export class PlatformAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly audit: AuditService,
     config: ConfigService<EnvironmentVariables, true>,
   ) {
     const tokens = prisma.platformRefreshToken;
@@ -57,13 +67,24 @@ export class PlatformAuthService {
           });
         },
         revokeByHash: async (tokenHash) => {
-          await tokens.updateMany({
-            where: { tokenHash, revokedAt: null },
+          const token = await tokens.findUnique({ where: { tokenHash } });
+          if (!token) return null;
+          const { count } = await tokens.updateMany({
+            where: { id: token.id, revokedAt: null },
             data: revokedNow(),
           });
+          return count === 1 ? token.adminId : null;
         },
       },
-      config.get('REFRESH_TOKEN_TTL_DAYS', { infer: true }),
+      {
+        ttlDays: config.get('REFRESH_TOKEN_TTL_DAYS', { infer: true }),
+        onReuseDetected: (adminId) =>
+          this.audit.log(prisma, 'auth.session_reuse_detected', {
+            actor: SYSTEM_ACTOR,
+            tenantId: null,
+            target: { type: 'PlatformAdmin', id: adminId },
+          }),
+      },
     );
   }
 
@@ -86,7 +107,11 @@ export class PlatformAuthService {
     }
 
     const { passwordHash: _, active: __, ...profile } = admin;
-    return this.createSession(profile);
+    const session = await this.createSession(profile);
+    await this.audit.log(this.prisma, 'platform.logged_in', {
+      actor: adminActor(profile),
+    });
+    return session;
   }
 
   async refresh(refreshToken: string | undefined): Promise<PlatformSession> {
@@ -102,8 +127,19 @@ export class PlatformAuthService {
     return this.createSession(profile);
   }
 
-  logout(refreshToken: string | undefined): Promise<void> {
-    return this.refreshTokens.revoke(refreshToken);
+  async logout(refreshToken: string | undefined): Promise<void> {
+    const adminId = await this.refreshTokens.revoke(refreshToken);
+    if (!adminId) return;
+
+    const admin = await this.prisma.platformAdmin.findUnique({
+      where: { id: adminId },
+      select: PLATFORM_ADMIN_PROFILE_SELECT,
+    });
+    if (admin) {
+      await this.audit.log(this.prisma, 'platform.logged_out', {
+        actor: adminActor(admin),
+      });
+    }
   }
 
   async getProfile(adminId: string): Promise<PlatformAdminProfile> {

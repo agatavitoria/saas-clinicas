@@ -13,6 +13,10 @@ const MESSAGES: Record<string, string> = {
   LAST_ACTIVE_ADMIN: 'A clínica precisa ter pelo menos um administrador ativo.',
   INVALID_CURRENT_PASSWORD: 'A senha atual está incorreta.',
   SAME_PASSWORD: 'A nova senha precisa ser diferente da atual.',
+  CLINIC_READ_ONLY:
+    'A exclusão da clínica está agendada: o sistema está somente para consulta até ela ser cancelada.',
+  INVALID_DELETION_STATE: 'Esta ação não é possível na situação atual da exclusão. Atualize a página.',
+  CONFIRMATION_MISMATCH: 'O nome digitado não confere com o nome da clínica.',
 }
 
 /** Mensagem em português para exibir ao usuário. */

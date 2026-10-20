@@ -17,7 +17,10 @@ export type ApiErrorCode =
   | 'CANNOT_DEACTIVATE_SELF'
   | 'LAST_ACTIVE_ADMIN'
   | 'SAME_PASSWORD'
-  | 'INVALID_CURRENT_PASSWORD';
+  | 'INVALID_CURRENT_PASSWORD'
+  | 'CLINIC_READ_ONLY'
+  | 'INVALID_DELETION_STATE'
+  | 'CONFIRMATION_MISMATCH';
 
 type ExceptionClass = new (body: object) => HttpException;
 

@@ -2,6 +2,7 @@ import { ConflictException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as argon2 from 'argon2';
 import { Prisma } from '../generated/prisma/client.js';
+import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClinicsService } from './clinics.service.js';
 import type { CreateClinicDto } from './dto/create-clinic.dto.js';
@@ -24,13 +25,21 @@ const dto: CreateClinicDto = {
 describe('ClinicsService', () => {
   let service: ClinicsService;
   const create = vi.fn();
+  const audit = { log: vi.fn() };
+  // Transação interativa: executa o callback com o próprio "tx"
+  const tx = { clinic: { create } };
+  const prisma = {
+    $transaction: vi.fn((fn: (client: typeof tx) => unknown) => fn(tx)),
+  };
 
   beforeEach(async () => {
     create.mockReset();
+    audit.log.mockReset();
     const module = await Test.createTestingModule({
       providers: [
         ClinicsService,
-        { provide: PrismaService, useValue: { clinic: { create } } },
+        { provide: PrismaService, useValue: prisma },
+        { provide: AuditService, useValue: audit },
       ],
     }).compile();
 
@@ -45,7 +54,11 @@ describe('ClinicsService', () => {
       email: 'ana@sorriso.com',
       role: 'ADMIN',
     };
-    create.mockResolvedValue({ id: 'clinic-1', users: [admin] });
+    create.mockResolvedValue({
+      id: 'clinic-1',
+      name: 'Clínica Sorriso',
+      users: [admin],
+    });
 
     const result = await service.create(dto);
 
@@ -58,11 +71,45 @@ describe('ClinicsService', () => {
       role: 'ADMIN',
       mustChangePassword: true,
     });
-    expect(result).toEqual({ clinic: { id: 'clinic-1' }, admin });
+    expect(result).toEqual({
+      clinic: {
+        id: 'clinic-1',
+        name: 'Clínica Sorriso',
+        deletion: expect.objectContaining({ status: 'NONE' }),
+      },
+      admin,
+    });
+  });
+
+  it('audits the clinic and admin creation in the same transaction', async () => {
+    create.mockResolvedValue({
+      id: 'clinic-1',
+      name: 'Clínica Sorriso',
+      users: [{ id: 'user-1', name: 'Ana Souza', role: 'ADMIN' }],
+    });
+
+    await service.create(dto);
+
+    expect(audit.log).toHaveBeenCalledWith(tx, 'clinic.created', {
+      tenantId: 'clinic-1',
+      target: { type: 'Clinic', id: 'clinic-1', label: 'Clínica Sorriso' },
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      tx,
+      'user.created',
+      expect.objectContaining({
+        tenantId: 'clinic-1',
+        metadata: { role: 'ADMIN' },
+      }),
+    );
   });
 
   it('stores an argon2 hash, never the plain password', async () => {
-    create.mockResolvedValue({ id: 'clinic-1', users: [{}] });
+    create.mockResolvedValue({
+      id: 'clinic-1',
+      name: 'Clínica Sorriso',
+      users: [{ id: 'user-1', name: 'Ana' }],
+    });
 
     await service.create(dto);
 
@@ -74,7 +121,11 @@ describe('ClinicsService', () => {
   });
 
   it('never selects the password hash in the response', async () => {
-    create.mockResolvedValue({ id: 'clinic-1', users: [{}] });
+    create.mockResolvedValue({
+      id: 'clinic-1',
+      name: 'Clínica Sorriso',
+      users: [{ id: 'user-1', name: 'Ana' }],
+    });
 
     await service.create(dto);
 

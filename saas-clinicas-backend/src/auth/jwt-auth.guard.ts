@@ -7,6 +7,8 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
+import { ClsService } from 'nestjs-cls';
+import type { AuditClsStore } from '../audit/audit-context.js';
 import { forbidden } from '../common/api-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthCookiesService } from './auth-cookies.service.js';
@@ -22,9 +24,17 @@ import {
   TENANT_AUDIENCE,
   TENANT_COOKIES,
 } from './auth.constants.js';
+import {
+  DELETION_FIELDS_SELECT,
+  deletionStatus,
+} from '../privacy/deletion-status.js';
+import { ALLOW_DURING_DELETION_KEY } from './decorators/allow-during-deletion.decorator.js';
 import { ALLOW_PENDING_PASSWORD_CHANGE_KEY } from './decorators/allow-pending-password-change.decorator.js';
 import { IS_PLATFORM_ROUTE_KEY } from './decorators/platform-route.decorator.js';
 import { IS_PUBLIC_KEY } from './decorators/public.decorator.js';
+
+/** Métodos que não alteram dados: liberados no modo somente leitura. */
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 type AuthenticatedRequest = Request & {
   user?: AuthUser;
@@ -35,7 +45,8 @@ type AuthenticatedRequest = Request & {
  * Guard global. Rotas @Public() passam direto; rotas @PlatformRoute()
  * exigem a sessão do admin master; as demais, a sessão de um usuário de
  * clínica. A cada requisição confere no banco se a conta (e a clínica)
- * continuam ativas, para que uma inativação valha na hora.
+ * continuam ativas, para que uma inativação valha na hora. Também guarda o
+ * ator no contexto da requisição, usado pela auditoria.
  */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -44,6 +55,7 @@ export class JwtAuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly prisma: PrismaService,
     private readonly cookies: AuthCookiesService,
+    private readonly cls: ClsService<AuditClsStore>,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -56,13 +68,24 @@ export class JwtAuthGuard implements CanActivate {
       return true;
     }
 
-    const { user, mustChangePassword } =
+    const { user, mustChangePassword, readOnly } =
       await this.authenticateTenantUser(request);
     if (
       mustChangePassword &&
       !this.flag(context, ALLOW_PENDING_PASSWORD_CHANGE_KEY)
     ) {
       throw forbidden('PASSWORD_CHANGE_REQUIRED', 'Password change required');
+    }
+    // Exclusão agendada: a equipe ainda acessa, mas só para consultar
+    if (
+      readOnly &&
+      !SAFE_METHODS.has(request.method) &&
+      !this.flag(context, ALLOW_DURING_DELETION_KEY)
+    ) {
+      throw forbidden(
+        'CLINIC_READ_ONLY',
+        'Clinic is scheduled for deletion and is read-only',
+      );
     }
     request.user = user;
     return true;
@@ -77,14 +100,21 @@ export class JwtAuthGuard implements CanActivate {
     const user = await this.prisma.forTenant(payload.tenantId).user.findUnique({
       where: { id: payload.sub },
       select: {
+        name: true,
         role: true,
         active: true,
         mustChangePassword: true,
-        clinic: { select: { active: true } },
+        clinic: { select: { active: true, ...DELETION_FIELDS_SELECT } },
       },
     });
     if (!user?.active || !user.clinic.active) throw new UnauthorizedException();
 
+    this.cls.set('actor', {
+      type: 'USER',
+      id: payload.sub,
+      label: user.name,
+      tenantId: payload.tenantId,
+    });
     return {
       // O papel vem do banco: uma mudança vale sem esperar o token expirar
       user: {
@@ -93,6 +123,7 @@ export class JwtAuthGuard implements CanActivate {
         role: user.role,
       },
       mustChangePassword: user.mustChangePassword,
+      readOnly: deletionStatus(user.clinic) === 'SCHEDULED',
     };
   }
 
@@ -106,9 +137,16 @@ export class JwtAuthGuard implements CanActivate {
 
     const admin = await this.prisma.platformAdmin.findUnique({
       where: { id: payload.sub },
-      select: { active: true },
+      select: { name: true, active: true },
     });
     if (!admin?.active) throw new UnauthorizedException();
+
+    this.cls.set('actor', {
+      type: 'PLATFORM_ADMIN',
+      id: payload.sub,
+      label: admin.name,
+      tenantId: null,
+    });
 
     return { adminId: payload.sub };
   }

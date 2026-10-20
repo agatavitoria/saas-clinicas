@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import * as argon2 from 'argon2';
+import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from './auth.service.js';
 
@@ -32,9 +33,12 @@ describe('AuthService', () => {
   let service: AuthService;
   let passwordHash: string;
   const jwt = { signAsync: vi.fn().mockResolvedValue('signed-jwt') };
+  const audit = { log: vi.fn() };
   const tenantDb = {
     refreshToken: { create: vi.fn(), updateMany: vi.fn() },
     user: { findUnique: vi.fn(), update: vi.fn() },
+    // Transação interativa: executa o callback com o próprio client
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn(tenantDb)),
   };
   const prisma = {
     user: { findUnique: vi.fn() },
@@ -61,6 +65,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwt },
+        { provide: AuditService, useValue: audit },
         {
           provide: ConfigService,
           useValue: { get: vi.fn().mockReturnValue(7) },
@@ -85,6 +90,18 @@ describe('AuthService', () => {
       );
       expect(prisma.forTenant).toHaveBeenCalledWith('clinic-1');
       expect(tenantDb.refreshToken.create).toHaveBeenCalled();
+      expect(audit.log).toHaveBeenCalledWith(
+        tenantDb,
+        'auth.logged_in',
+        expect.objectContaining({
+          actor: {
+            type: 'USER',
+            id: 'user-1',
+            label: 'Ana Souza',
+            tenantId: 'clinic-1',
+          },
+        }),
+      );
     });
 
     it('rejects a wrong password', async () => {
@@ -156,6 +173,13 @@ describe('AuthService', () => {
         }),
       );
       expect(session.user).toEqual(profile);
+      expect(audit.log).toHaveBeenCalledWith(
+        tenantDb,
+        'auth.password_changed',
+        expect.objectContaining({
+          target: expect.objectContaining({ id: 'user-1' }),
+        }),
+      );
     });
 
     it('rejects a wrong current password', async () => {
