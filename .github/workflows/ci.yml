@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Um push novo cancela a execução anterior do mesmo branch
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (lint, testes, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: saas-clinicas-backend
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: saas_clinicas
+          POSTGRES_PASSWORD: saas_clinicas
+          POSTGRES_DB: saas_clinicas_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U saas_clinicas -d saas_clinicas_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # O prisma.config.ts exige DATABASE_URL (ex.: no prisma generate)
+      DATABASE_URL: postgresql://saas_clinicas:saas_clinicas@localhost:5432/saas_clinicas_test
+      TEST_DATABASE_URL: postgresql://saas_clinicas:saas_clinicas@localhost:5432/saas_clinicas_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: saas-clinicas-backend/package-lock.json
+
+      - name: Instalar dependências (gera o client do Prisma)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Testes unitários
+        run: npm run test
+
+      - name: Testes e2e
+        run: npm run test:e2e
+
+      - name: Build
+        run: npm run build
+
+  frontend:
+    name: Frontend (lint, typecheck)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: saas-clinicas-frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: saas-clinicas-frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
