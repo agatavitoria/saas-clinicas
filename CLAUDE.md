@@ -64,6 +64,15 @@ As subpastas NÃO devem ter `.git` próprio.
   - O guard confere no banco, a cada requisição, se o usuário e a clínica
     estão ativos.
   - O usuário vem de `@CurrentUser()`; o master, de `@CurrentPlatformAdmin()`.
+- Row-Level Security no Postgres é a segunda camada de isolamento.
+  - O `forTenant` faz `SET LOCAL ROLE app_tenant` + `app.tenant_id` em cada
+    operação.
+  - Transações interativas de clínica usam
+    `prisma.tenantTransaction(tenantId, async tx => …)`, nunca
+    `forTenant(...).$transaction`; dentro do callback, use só o `tx`.
+  - Toda tabela nova de clínica precisa, na migration: `ENABLE ROW LEVEL
+    SECURITY`, a política `tenant_isolation` com `app_current_tenant()` e os
+    `GRANT`s para `app_tenant`.
 - Acesso a dados de clínica sempre via `prisma.forTenant(tenantId)`. O
   `tenantId` vem do token, exceto nas rotas `/api/platform/clinics/:id/...`
   do master, onde vem da URL. O `prisma` sem escopo fica restrito a login,

@@ -156,8 +156,7 @@ export class ClinicsService {
     const current = await this.findOne(id);
     if (current.active === active) return current;
 
-    const db = this.prisma.forTenant(id);
-    const clinic = await db.$transaction(async (tx) => {
+    const clinic = await this.prisma.tenantTransaction(id, async (tx) => {
       const updated = await tx.clinic.update({
         where: { id },
         data: { active },

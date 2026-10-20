@@ -261,21 +261,24 @@ export class AuthService {
     }
 
     const passwordHash = await argon2.hash(newPassword);
-    const profile = await db.$transaction(async (tx) => {
-      const updated = await tx.user.update({
-        where: { id: auth.userId },
-        data: { passwordHash, mustChangePassword: false },
-        select: USER_PROFILE_SELECT,
-      });
-      await tx.refreshToken.updateMany({
-        where: { userId: auth.userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
-      await this.audit.log(tx, 'auth.password_changed', {
-        target: { type: 'User', id: updated.id, label: updated.name },
-      });
-      return updated;
-    });
+    const profile = await this.prisma.tenantTransaction(
+      auth.tenantId,
+      async (tx) => {
+        const updated = await tx.user.update({
+          where: { id: auth.userId },
+          data: { passwordHash, mustChangePassword: false },
+          select: USER_PROFILE_SELECT,
+        });
+        await tx.refreshToken.updateMany({
+          where: { userId: auth.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        await this.audit.log(tx, 'auth.password_changed', {
+          target: { type: 'User', id: updated.id, label: updated.name },
+        });
+        return updated;
+      },
+    );
 
     return this.createSession(profile);
   }

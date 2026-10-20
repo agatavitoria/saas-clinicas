@@ -170,8 +170,7 @@ export class PrivacyService {
   ): Promise<ClinicDetails> {
     await this.clinics.findOne(tenantId); // 404 se não existir
 
-    const db = this.prisma.forTenant(tenantId);
-    const clinic = await db.$transaction(async (tx) => {
+    const clinic = await this.prisma.tenantTransaction(tenantId, async (tx) => {
       const { count } = await tx.clinic.updateMany({
         where: step.when,
         data: step.data,

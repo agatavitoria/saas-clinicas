@@ -37,13 +37,15 @@ describe('AuthService', () => {
   const tenantDb = {
     refreshToken: { create: vi.fn(), updateMany: vi.fn() },
     user: { findUnique: vi.fn(), update: vi.fn() },
-    // Transação interativa: executa o callback com o próprio client
-    $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn(tenantDb)),
   };
   const prisma = {
     user: { findUnique: vi.fn() },
     refreshToken: { findUnique: vi.fn(), updateMany: vi.fn() },
     forTenant: vi.fn(() => tenantDb),
+    // Transação da clínica: executa o callback com o client da clínica
+    tenantTransaction: vi.fn(
+      (_tenantId: string, fn: (tx: unknown) => unknown) => fn(tenantDb),
+    ),
   };
 
   const storedUser = (overrides: object = {}) => ({
@@ -162,6 +164,10 @@ describe('AuthService', () => {
         'nova-senha-123',
       );
 
+      expect(prisma.tenantTransaction).toHaveBeenCalledWith(
+        'clinic-1',
+        expect.any(Function),
+      );
       const { data } = tenantDb.user.update.mock.calls[0][0];
       expect(data.mustChangePassword).toBe(false);
       expect(await argon2.verify(data.passwordHash, 'nova-senha-123')).toBe(

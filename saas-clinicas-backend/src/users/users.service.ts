@@ -39,7 +39,7 @@ export class UsersService {
     const passwordHash = await argon2.hash(dto.temporaryPassword);
 
     try {
-      return await this.prisma.forTenant(tenantId).$transaction(async (tx) => {
+      return await this.prisma.tenantTransaction(tenantId, async (tx) => {
         const user = await tx.user.create({
           data: {
             tenantId,
@@ -106,7 +106,7 @@ export class UsersService {
       }
     }
 
-    return db.$transaction(async (tx) => {
+    return this.prisma.tenantTransaction(tenantId, async (tx) => {
       const updated = await tx.user.update({
         where: { id: userId },
         data: { active },
@@ -136,12 +136,13 @@ export class UsersService {
     userId: string,
     temporaryPassword: string,
   ): Promise<TeamMember> {
-    const db = this.prisma.forTenant(tenantId);
-    const exists = await db.user.count({ where: { id: userId } });
+    const exists = await this.prisma
+      .forTenant(tenantId)
+      .user.count({ where: { id: userId } });
     if (!exists) throw new NotFoundException('User not found');
 
     const passwordHash = await argon2.hash(temporaryPassword);
-    return db.$transaction(async (tx) => {
+    return this.prisma.tenantTransaction(tenantId, async (tx) => {
       const updated = await tx.user.update({
         where: { id: userId },
         data: { passwordHash, mustChangePassword: true },

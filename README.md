@@ -64,10 +64,8 @@ sistema guarda dados de saúde.
   - [ ] LGPD de pacientes: base legal, consentimento e retenção do
     prontuário (20 anos, pela regra do CFM). Dados de saúde são dados
     sensíveis pela lei.
-- [ ] **Row-Level Security no Postgres.** Uma segunda camada de isolamento,
-  aplicada pelo próprio banco: cada conexão informa o tenant (por exemplo,
-  `SET app.tenant_id`), e as policies bloqueiam linhas de outras clínicas
-  mesmo que uma consulta escape do `forTenant`.
+- [x] **Row-Level Security no Postgres.** Ver [Multi-tenancy](#multi-tenancy).
+- [x] **CI.** GitHub Actions com lint, testes e build a cada push.
 - [ ] **Convite por e-mail e recuperação de senha.**
   - Substituir a senha provisória repassada à mão por um link de convite com
     validade.
@@ -160,6 +158,40 @@ lembrar do filtro em cada consulta. Um id de outra clínica simplesmente não
 A única exceção são as rotas do admin master (`/api/platform/clinics/:id/...`),
 em que a clínica vem da URL. Elas só aceitam a sessão de plataforma e usam o
 mesmo `forTenant` com esse id.
+
+### Row-Level Security (segunda camada)
+
+Além do filtro da aplicação, o **próprio Postgres** recusa linhas de outras
+clínicas. Se uma consulta escapar do `forTenant` (SQL cru, um bug, um filtro
+esquecido), o banco devolve zero linhas em vez de vazar dados.
+
+- **Como liga:** cada operação do `forTenant` roda numa transação curta que
+  começa com:
+  ```sql
+  SET LOCAL ROLE app_tenant;                               -- papel restrito
+  SELECT set_config('app.tenant_id', '<id da clínica>', true);
+  ```
+  As políticas de `clinics`, `clinic_business_hours`, `users`,
+  `refresh_tokens` e `audit_logs` só deixam passar linhas em que
+  `tenantId = app_current_tenant()`.
+- **Transações com várias operações:** use
+  `prisma.tenantTransaction(tenantId, async (tx) => …)`. Ela faz o mesmo
+  ajuste uma vez no início. Dentro do callback, use só o `tx` recebido.
+- **Sem clínica definida, nada passa:** sem `app.tenant_id`, nenhuma linha é
+  visível.
+- **Permissões:** o papel `app_tenant` só pode ler e inserir em `audit_logs`,
+  o que reforça a imutabilidade no nível de permissão.
+- **Fora do RLS:** o client sem escopo continua com o usuário dono das
+  tabelas, que não é afetado pelas políticas. É o que atende login, refresh,
+  rotas do master e o job de LGPD.
+- **Testes:** os e2e de `test/row-level-security.e2e-spec.ts` usam SQL cru
+  para provar o isolamento sem a ajuda da aplicação.
+
+> A migration cria o papel `app_tenant`, o que exige permissão `CREATEROLE`.
+> No Docker local e na CI o usuário é superusuário. Em bancos gerenciados
+> (RDS, Supabase etc.), crie o papel antes com `CREATE ROLE app_tenant
+> NOLOGIN;` e conceda-o ao usuário da aplicação (`GRANT app_tenant TO
+> <usuário>;`).
 
 ## Modelo de dados
 
@@ -506,6 +538,10 @@ encerra tudo.
 
 ## Testes
 
+A CI (`.github/workflows/ci.yml`) roda tudo isto a cada push e pull request
+na `main`: lint, testes unitários, e2e (com um Postgres de serviço) e build
+do backend, além de lint e typecheck do frontend.
+
 Os testes e2e rodam contra um banco separado, o `saas_clinicas_test`, que o
 container cria automaticamente na primeira vez que sobe. Antes de cada
 execução, as migrations pendentes são aplicadas nele, e cada teste limpa os
@@ -528,7 +564,8 @@ Os e2e cobrem, entre outros cenários:
 - o admin só vê o histórico da própria clínica, e os demais usuários não veem
   nada;
 - o fluxo completo de exclusão, com logs anonimizados depois da exclusão
-  definitiva.
+  definitiva;
+- o Row-Level Security, que barra o acesso a outra clínica mesmo com SQL cru.
 
 ## API
 
