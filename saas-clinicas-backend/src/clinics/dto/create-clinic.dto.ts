@@ -78,11 +78,12 @@ export class AdminUserDto {
   @MaxLength(254)
   email: string;
 
+  /** Repassada ao administrador; precisa ser trocada no primeiro login. */
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
   @MaxLength(128)
-  password: string;
+  temporaryPassword: string;
 }
 
 export class CreateClinicDto {

@@ -8,6 +8,7 @@ import { AuthCookiesService } from './auth-cookies.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
+import { RolesGuard } from './roles.guard.js';
 
 const MINUTE_IN_MS = 60_000;
 
@@ -22,7 +23,7 @@ const MINUTE_IN_MS = 60_000;
         },
       }),
     }),
-    // Aplicado só onde há @UseGuards(ThrottlerGuard), como no login
+    // Aplicado só onde há @UseGuards(ThrottlerGuard): os dois logins
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<EnvironmentVariables, true>) => [
@@ -37,8 +38,10 @@ const MINUTE_IN_MS = 60_000;
   providers: [
     AuthService,
     AuthCookiesService,
+    // A ordem importa: autentica primeiro, depois confere o papel
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
-  exports: [AuthService, AuthCookiesService],
+  exports: [AuthService, AuthCookiesService, JwtModule],
 })
 export class AuthModule {}

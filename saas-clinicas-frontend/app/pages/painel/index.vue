@@ -6,7 +6,7 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Painel · SaaS Clínicas' })
 
 const api = useApi()
-const { user } = useAuth()
+const { user, isAdmin } = useAuth()
 
 const { data, status, refresh } = await useAsyncData('dashboard', async () => {
   const [clinic, team] = await Promise.all([
@@ -15,6 +15,8 @@ const { data, status, refresh } = await useAsyncData('dashboard', async () => {
   ])
   return { clinic, team }
 })
+
+const activeTeam = computed(() => data.value?.team.filter(member => member.active) ?? [])
 
 const now = useNow()
 const todayWeekday = computed(() => now.value.getDay())
@@ -139,24 +141,18 @@ const COMING_SOON = [
             <v-card-item prepend-icon="mdi-account-group-outline">
               <v-card-title>Equipe</v-card-title>
               <v-card-subtitle>
-                {{ data.team.length }} {{ data.team.length === 1 ? 'pessoa' : 'pessoas' }}
+                {{ activeTeam.length }} {{ activeTeam.length === 1 ? 'pessoa ativa' : 'pessoas ativas' }}
               </v-card-subtitle>
-              <template #append>
-                <v-tooltip text="Em breve" location="top">
-                  <template #activator="{ props }">
-                    <span v-bind="props">
-                      <v-btn variant="tonal" prepend-icon="mdi-account-plus-outline" disabled>
-                        Convidar
-                      </v-btn>
-                    </span>
-                  </template>
-                </v-tooltip>
+              <template v-if="isAdmin" #append>
+                <v-btn variant="tonal" prepend-icon="mdi-account-cog-outline" to="/painel/equipe">
+                  Gerenciar equipe
+                </v-btn>
               </template>
             </v-card-item>
 
             <v-list lines="two">
               <v-list-item
-                v-for="member in data.team"
+                v-for="member in activeTeam"
                 :key="member.id"
                 :title="member.name"
                 :subtitle="member.email"

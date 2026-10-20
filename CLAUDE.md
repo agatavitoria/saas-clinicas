@@ -40,20 +40,41 @@ As subpastas NÃO devem ter `.git` próprio.
 - Validação no backend: `class-validator` + `class-transformer` (ValidationPipe global)
 - Senhas: hash com `argon2`
 - UI do frontend: Vuetify (Material Design 3), integrado via `vite-plugin-vuetify`
-- Autenticação: JWT em cookies httpOnly. O access token dura 15 minutos e leva
-  `sub`, `tenantId` e `role`. O refresh token é rotacionado, guardado como
-  hash na tabela `RefreshToken` e tem detecção de reuso.
+- Autenticação: JWT em cookies httpOnly, com duas sessões independentes:
+  - **clínica:** cookies `access_token`/`refresh_token`, JWT `aud: 'tenant'`
+    com `sub`, `tenantId` e `role`;
+  - **admin master (plataforma):** tabela `PlatformAdmin`, cookies
+    `platform_access_token`/`platform_refresh_token` e JWT `aud: 'platform'`.
+
+  O access token dura 15 minutos. O refresh token é rotacionado, guardado
+  como hash e tem detecção de reuso. A regra de rotação é compartilhada em
+  `src/auth/refresh-token-rotation.ts`.
 - API sob o prefixo `/api`; o frontend acessa via proxy do Nuxt (`/api/**`)
+- Não há cadastro público: o master cria as clínicas. O primeiro master é
+  criado com `npm run platform:create-admin`.
 
 ## Padrões de código
 
-- Backend: todas as rotas exigem login (guard global `JwtAuthGuard`); rotas
-  abertas usam `@Public()`. O usuário vem de `@CurrentUser()`.
-- Acesso a dados de um usuário autenticado sempre via
-  `prisma.forTenant(user.tenantId)`. O `prisma` sem escopo fica restrito a
-  login, refresh e cadastro de clínica.
-- Frontend: chamadas à API via `useApi()`, que renova a sessão quando recebe
-  401. Páginas logadas usam `definePageMeta({ layout: 'dashboard', middleware: 'auth' })`.
+- Backend: guard global `JwtAuthGuard`. Por padrão, toda rota exige a sessão
+  de clínica.
+  - `@Public()` libera a rota; `@PlatformRoute()` exige a sessão do master.
+  - `@Roles('ADMIN')` restringe por papel (`RolesGuard`).
+  - Com `mustChangePassword`, só rotas com `@AllowPendingPasswordChange()`
+    respondem.
+  - O guard confere no banco, a cada requisição, se o usuário e a clínica
+    estão ativos.
+  - O usuário vem de `@CurrentUser()`; o master, de `@CurrentPlatformAdmin()`.
+- Acesso a dados de clínica sempre via `prisma.forTenant(tenantId)`. O
+  `tenantId` vem do token, exceto nas rotas `/api/platform/clinics/:id/...`
+  do master, onde vem da URL. O `prisma` sem escopo fica restrito a login,
+  refresh e às rotas do master.
+- Erros de regra de negócio usam os helpers de `src/common/api-error.ts`, com
+  um `code` estável que o front traduz em `app/utils/api-errors.ts`.
+- Frontend: chamadas à API via `useApi()`, que renova a sessão certa (clínica
+  ou master) quando recebe 401.
+  - Páginas da clínica usam `definePageMeta({ layout: 'dashboard', middleware: 'auth' })`
+    (acrescente `'admin'` para restringir a administradores).
+  - Páginas do master usam `layout: 'master'` com `middleware: 'platform-auth'`.
 
 ## Convenções
 
@@ -69,7 +90,8 @@ Raiz (não tem `package.json`):
 - `make install` — `npm install` no backend e no frontend
 - `make up [back|front]` — sobe banco + backend + frontend (ou só um deles)
 - `make db` / `make db-down` — sobe/para o Postgres
-- `make migrate` — cria/aplica migrations no banco de desenvolvimento (e regenera o client)
+- `make migrate` — cria/aplica migrations no banco de desenvolvimento (regenera o client e roda a seed)
+- `make seed` — seed de desenvolvimento: admin master padrão `admin` / `admin` (só fora de produção)
 
 Backend (`saas-clinicas-backend/`, copie `.env.example` para `.env`):
 - `npm run start:dev` — servidor em modo desenvolvimento
@@ -77,6 +99,7 @@ Backend (`saas-clinicas-backend/`, copie `.env.example` para `.env`):
 - `npm run test:e2e` — testes e2e (usam o banco `saas_clinicas_test`)
 - `npm run lint` — lint
 - `npx prisma generate` — regenera o client após mudar o schema
+- `npm run platform:create-admin -- --name "..." --email "..."` — cria/reativa um admin master
 
 Frontend (`saas-clinicas-frontend/`):
 - `npm run dev` — servidor em modo desenvolvimento

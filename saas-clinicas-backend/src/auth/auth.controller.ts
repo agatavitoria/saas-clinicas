@@ -13,14 +13,13 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthCookiesService } from './auth-cookies.service.js';
 import type { AuthUser, UserProfile } from './auth-user.js';
-import { REFRESH_TOKEN_COOKIE } from './auth.constants.js';
+import { TENANT_COOKIES } from './auth.constants.js';
 import { AuthService } from './auth.service.js';
+import { AllowPendingPasswordChange } from './decorators/allow-pending-password-change.decorator.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { Public } from './decorators/public.decorator.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
-
-const refreshTokenFrom = (req: Request): string | undefined =>
-  (req.cookies as Record<string, string> | undefined)?.[REFRESH_TOKEN_COOKIE];
 
 @Controller('auth')
 export class AuthController {
@@ -38,7 +37,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ user: UserProfile }> {
     const session = await this.authService.login(dto.email, dto.password);
-    this.cookies.set(res, session);
+    this.cookies.set(res, TENANT_COOKIES, session);
     return { user: session.user };
   }
 
@@ -50,11 +49,13 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ user: UserProfile }> {
     try {
-      const session = await this.authService.refresh(refreshTokenFrom(req));
-      this.cookies.set(res, session);
+      const session = await this.authService.refresh(
+        this.cookies.read(req, TENANT_COOKIES.refresh.name),
+      );
+      this.cookies.set(res, TENANT_COOKIES, session);
       return { user: session.user };
     } catch (error) {
-      this.cookies.clear(res);
+      this.cookies.clear(res, TENANT_COOKIES);
       throw error;
     }
   }
@@ -67,12 +68,32 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    await this.authService.logout(refreshTokenFrom(req));
-    this.cookies.clear(res);
+    await this.authService.logout(
+      this.cookies.read(req, TENANT_COOKIES.refresh.name),
+    );
+    this.cookies.clear(res, TENANT_COOKIES);
   }
 
+  @AllowPendingPasswordChange()
   @Get('me')
   me(@CurrentUser() user: AuthUser): Promise<UserProfile> {
     return this.authService.getProfile(user.userId, user.tenantId);
+  }
+
+  @AllowPendingPasswordChange()
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ChangePasswordDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ user: UserProfile }> {
+    const session = await this.authService.changePassword(
+      user,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+    this.cookies.set(res, TENANT_COOKIES, session);
+    return { user: session.user };
   }
 }

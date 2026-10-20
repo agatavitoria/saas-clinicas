@@ -2,27 +2,30 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
+import { badRequest, forbidden } from '../common/api-error.js';
 import type { EnvironmentVariables } from '../config/env.validation.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import type { SessionTokens } from './auth-cookies.service.js';
 import {
-  type AccessTokenPayload,
+  type AuthUser,
+  type TenantAccessTokenPayload,
   USER_PROFILE_SELECT,
   type UserProfile,
 } from './auth-user.js';
+import { TENANT_AUDIENCE } from './auth.constants.js';
+import { RefreshTokenRotation } from './refresh-token-rotation.js';
 
-export interface Session {
+export interface Session extends SessionTokens {
   user: UserProfile;
-  accessToken: string;
-  refreshToken: string;
-  refreshTokenExpiresAt: Date;
 }
 
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
+interface TenantTokenOwner {
+  userId: string;
+  tenantId: string;
+}
 
-const hashToken = (token: string): string =>
-  createHash('sha256').update(token).digest('hex');
-
+/** Sessões dos usuários de clínica. */
 @Injectable()
 export class AuthService {
   /**
@@ -31,18 +34,73 @@ export class AuthService {
    */
   private readonly dummyHash = argon2.hash(randomBytes(16).toString('hex'));
 
+  private readonly refreshTokens: RefreshTokenRotation<TenantTokenOwner>;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-    private readonly config: ConfigService<EnvironmentVariables, true>,
-  ) {}
+    config: ConfigService<EnvironmentVariables, true>,
+  ) {
+    const revokedNow = () => ({ revokedAt: new Date() });
+
+    this.refreshTokens = new RefreshTokenRotation<TenantTokenOwner>(
+      {
+        create: async ({ userId, tenantId }, tokenHash, expiresAt) => {
+          await prisma.forTenant(tenantId).refreshToken.create({
+            data: { tenantId, userId, tokenHash, expiresAt },
+          });
+        },
+        // O token identifica o tenant, então a busca é a única sem escopo
+        findByHash: async (tokenHash) => {
+          const token = await prisma.refreshToken.findUnique({
+            where: { tokenHash },
+          });
+          return (
+            token && {
+              id: token.id,
+              expiresAt: token.expiresAt,
+              revokedAt: token.revokedAt,
+              owner: { userId: token.userId, tenantId: token.tenantId },
+            }
+          );
+        },
+        revoke: async ({ id, owner }) => {
+          const { count } = await prisma
+            .forTenant(owner.tenantId)
+            .refreshToken.updateMany({
+              where: { id, revokedAt: null },
+              data: revokedNow(),
+            });
+          return count === 1;
+        },
+        revokeAllOf: async ({ userId, tenantId }) => {
+          await prisma.forTenant(tenantId).refreshToken.updateMany({
+            where: { userId, revokedAt: null },
+            data: revokedNow(),
+          });
+        },
+        revokeByHash: async (tokenHash) => {
+          await prisma.refreshToken.updateMany({
+            where: { tokenHash, revokedAt: null },
+            data: revokedNow(),
+          });
+        },
+      },
+      config.get('REFRESH_TOKEN_TTL_DAYS', { infer: true }),
+    );
+  }
 
   async login(email: string, password: string): Promise<Session> {
     // O login é a única busca de usuário sem tenant: o e-mail é único na
     // plataforma e é ele que identifica a clínica.
     const user = await this.prisma.user.findUnique({
       where: { email },
-      select: { ...USER_PROFILE_SELECT, passwordHash: true },
+      select: {
+        ...USER_PROFILE_SELECT,
+        passwordHash: true,
+        active: true,
+        clinic: { select: { active: true } },
+      },
     });
 
     const valid = await argon2.verify(
@@ -53,81 +111,61 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const { passwordHash: _, ...profile } = user;
+    // Só revelamos a inativação para quem acertou a senha
+    if (!user.active) throw forbidden('USER_INACTIVE', 'User is inactive');
+    if (!user.clinic.active) {
+      throw forbidden('CLINIC_INACTIVE', 'Clinic is inactive');
+    }
+
+    const { passwordHash: _, active: __, clinic: ___, ...profile } = user;
     return this.createSession(profile);
   }
 
   /** Emite access token e um novo refresh token persistido. */
   async createSession(user: UserProfile): Promise<Session> {
-    const payload: AccessTokenPayload = {
+    const payload: TenantAccessTokenPayload = {
       sub: user.id,
       tenantId: user.tenantId,
       role: user.role,
     };
-    const accessToken = await this.jwt.signAsync(payload);
-
-    const refreshToken = randomBytes(32).toString('base64url');
-    const refreshTokenExpiresAt = new Date(
-      Date.now() +
-        this.config.get('REFRESH_TOKEN_TTL_DAYS', { infer: true }) * DAY_IN_MS,
-    );
-
-    await this.prisma.forTenant(user.tenantId).refreshToken.create({
-      data: {
-        tenantId: user.tenantId,
-        userId: user.id,
-        tokenHash: hashToken(refreshToken),
-        expiresAt: refreshTokenExpiresAt,
-      },
+    const accessToken = await this.jwt.signAsync(payload, {
+      audience: TENANT_AUDIENCE,
+    });
+    const refresh = await this.refreshTokens.issue({
+      userId: user.id,
+      tenantId: user.tenantId,
     });
 
-    return { user, accessToken, refreshToken, refreshTokenExpiresAt };
+    return {
+      user,
+      accessToken,
+      refreshToken: refresh.token,
+      refreshTokenExpiresAt: refresh.expiresAt,
+    };
   }
 
-  /**
-   * Troca um refresh token válido por uma nova sessão (rotação). Se um token
-   * já revogado for reapresentado, assume vazamento e revoga todas as
-   * sessões do usuário.
-   */
+  /** Troca o refresh token por uma nova sessão (rotação). */
   async refresh(refreshToken: string | undefined): Promise<Session> {
-    if (!refreshToken) throw new UnauthorizedException();
+    const owner = await this.refreshTokens.consume(refreshToken);
 
-    const stored = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash: hashToken(refreshToken) },
-      include: { user: { select: USER_PROFILE_SELECT } },
+    const user = await this.prisma.forTenant(owner.tenantId).user.findUnique({
+      where: { id: owner.userId },
+      select: {
+        ...USER_PROFILE_SELECT,
+        active: true,
+        clinic: { select: { active: true } },
+      },
     });
-    if (!stored) throw new UnauthorizedException();
-
-    const tenantDb = this.prisma.forTenant(stored.tenantId);
-
-    if (stored.revokedAt) {
-      await tenantDb.refreshToken.updateMany({
-        where: { userId: stored.userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
+    if (!user?.active || !user.clinic.active) {
       throw new UnauthorizedException();
     }
 
-    if (stored.expiresAt <= new Date()) throw new UnauthorizedException();
-
-    // Revoga de forma condicional: em requisições simultâneas com o mesmo
-    // token, só uma consegue a rotação.
-    const { count } = await tenantDb.refreshToken.updateMany({
-      where: { id: stored.id, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
-    if (count === 0) throw new UnauthorizedException();
-
-    return this.createSession(stored.user);
+    const { active: _, clinic: __, ...profile } = user;
+    return this.createSession(profile);
   }
 
-  async logout(refreshToken: string | undefined): Promise<void> {
-    if (!refreshToken) return;
-
-    await this.prisma.refreshToken.updateMany({
-      where: { tokenHash: hashToken(refreshToken), revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+  logout(refreshToken: string | undefined): Promise<void> {
+    return this.refreshTokens.revoke(refreshToken);
   }
 
   async getProfile(userId: string, tenantId: string): Promise<UserProfile> {
@@ -136,5 +174,47 @@ export class AuthService {
       .user.findUnique({ where: { id: userId }, select: USER_PROFILE_SELECT });
     if (!user) throw new UnauthorizedException();
     return user;
+  }
+
+  /**
+   * Troca a senha (inclusive a provisória), encerra as outras sessões e
+   * devolve uma sessão nova.
+   */
+  async changePassword(
+    auth: AuthUser,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<Session> {
+    const db = this.prisma.forTenant(auth.tenantId);
+    const user = await db.user.findUnique({
+      where: { id: auth.userId },
+      select: { passwordHash: true },
+    });
+    if (!user) throw new UnauthorizedException();
+
+    if (!(await argon2.verify(user.passwordHash, currentPassword))) {
+      throw badRequest(
+        'INVALID_CURRENT_PASSWORD',
+        'Current password is incorrect',
+      );
+    }
+    if (currentPassword === newPassword) {
+      throw badRequest(
+        'SAME_PASSWORD',
+        'New password must differ from the current one',
+      );
+    }
+
+    const profile = await db.user.update({
+      where: { id: auth.userId },
+      data: {
+        passwordHash: await argon2.hash(newPassword),
+        mustChangePassword: false,
+      },
+      select: USER_PROFILE_SELECT,
+    });
+    await this.refreshTokens.revokeAllOf(auth);
+
+    return this.createSession(profile);
   }
 }

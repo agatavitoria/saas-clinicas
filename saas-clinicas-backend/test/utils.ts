@@ -1,9 +1,11 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import * as argon2 from 'argon2';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app/configure-app.js';
+import { ClinicsService } from '../src/clinics/clinics.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
 export async function createTestApp(): Promise<{
@@ -20,9 +22,10 @@ export async function createTestApp(): Promise<{
   return { app, prisma: app.get(PrismaService) };
 }
 
-/** Apaga todos os dados de negócio (cascade a partir das clínicas). */
+/** Apaga todos os dados (cascade a partir das clínicas e dos admins master). */
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
   await prisma.clinic.deleteMany();
+  await prisma.platformAdmin.deleteMany();
 }
 
 export const PASSWORD = 'senha-segura';
@@ -41,22 +44,88 @@ export const clinicPayload = (slug: string) => ({
   admin: {
     name: `Admin ${slug}`,
     email: `admin@${slug}.com`,
-    password: PASSWORD,
+    temporaryPassword: PASSWORD,
   },
 });
 
-/** Cria uma clínica e devolve os cookies de sessão do administrador. */
+export const http = (app: INestApplication<App>) =>
+  request(app.getHttpServer());
+
+/** Faz login de clínica e devolve os cookies da sessão. */
+export async function login(
+  app: INestApplication<App>,
+  email: string,
+  password = PASSWORD,
+): Promise<string[]> {
+  const response = await http(app)
+    .post('/api/auth/login')
+    .send({ email, password })
+    .expect(200);
+  return setCookies(response);
+}
+
+/**
+ * Cria uma clínica (como o master faria), dispensa a troca da senha
+ * provisória e devolve a sessão do administrador.
+ */
 export async function signUpClinic(app: INestApplication<App>, slug: string) {
-  const response = await request(app.getHttpServer())
-    .post('/api/clinics')
-    .send(clinicPayload(slug))
-    .expect(201);
+  const prisma = app.get(PrismaService);
+  const { clinic, admin } = await app
+    .get(ClinicsService)
+    .create(clinicPayload(slug));
+  await prisma.user.update({
+    where: { id: admin.id },
+    data: { mustChangePassword: false },
+  });
 
   return {
-    clinicId: response.body.clinic.id as string,
-    adminId: response.body.admin.id as string,
-    cookies: setCookies(response),
+    clinicId: clinic.id,
+    adminId: admin.id,
+    adminEmail: admin.email,
+    cookies: await login(app, admin.email),
   };
+}
+
+/** Cria um usuário direto no banco, já com a senha definitiva. */
+export async function createUser(
+  prisma: PrismaService,
+  tenantId: string,
+  data: {
+    email: string;
+    role: 'ADMIN' | 'PROFESSIONAL' | 'RECEPTION';
+    name?: string;
+  },
+) {
+  return prisma.user.create({
+    data: {
+      tenantId,
+      name: data.name ?? data.email,
+      email: data.email,
+      role: data.role,
+      passwordHash: await argon2.hash(PASSWORD),
+    },
+  });
+}
+
+export const MASTER_EMAIL = 'master@plataforma.com';
+
+/** Cria um admin master e devolve a sessão de plataforma. */
+export async function signInPlatformAdmin(
+  app: INestApplication<App>,
+): Promise<string[]> {
+  await app.get(PrismaService).platformAdmin.create({
+    data: {
+      name: 'Master',
+      email: MASTER_EMAIL,
+      passwordHash: await argon2.hash(PASSWORD),
+    },
+  });
+
+  const response = await http(app)
+    .post('/api/platform/auth/login')
+    .send({ email: MASTER_EMAIL, password: PASSWORD })
+    .expect(200);
+  return setCookies(response);
 }
 
 export function setCookies(response: request.Response): string[] {

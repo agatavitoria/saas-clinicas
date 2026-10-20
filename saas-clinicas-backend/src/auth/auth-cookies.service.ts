@@ -1,41 +1,47 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { CookieOptions, Response } from 'express';
+import type { CookieOptions, Request, Response } from 'express';
 import type { EnvironmentVariables } from '../config/env.validation.js';
-import {
-  ACCESS_TOKEN_COOKIE,
-  REFRESH_TOKEN_COOKIE,
-  REFRESH_TOKEN_COOKIE_PATH,
-} from './auth.constants.js';
-import type { Session } from './auth.service.js';
+import type { SessionCookieNames } from './auth.constants.js';
 
-/** Grava e limpa os cookies httpOnly de sessão. */
+export interface SessionTokens {
+  accessToken: string;
+  refreshToken: string;
+  refreshTokenExpiresAt: Date;
+}
+
+/** Grava, lê e limpa os cookies httpOnly de um tipo de sessão. */
 @Injectable()
 export class AuthCookiesService {
   constructor(
     private readonly config: ConfigService<EnvironmentVariables, true>,
   ) {}
 
-  set(res: Response, session: Session): void {
-    res.cookie(ACCESS_TOKEN_COOKIE, session.accessToken, {
+  set(res: Response, names: SessionCookieNames, tokens: SessionTokens): void {
+    res.cookie(names.access.name, tokens.accessToken, {
       ...this.baseOptions(),
-      path: '/',
+      path: names.access.path,
       maxAge:
         this.config.get('ACCESS_TOKEN_TTL_SECONDS', { infer: true }) * 1000,
     });
-    res.cookie(REFRESH_TOKEN_COOKIE, session.refreshToken, {
+    res.cookie(names.refresh.name, tokens.refreshToken, {
       ...this.baseOptions(),
-      path: REFRESH_TOKEN_COOKIE_PATH,
-      expires: session.refreshTokenExpiresAt,
+      path: names.refresh.path,
+      expires: tokens.refreshTokenExpiresAt,
     });
   }
 
-  clear(res: Response): void {
-    res.clearCookie(ACCESS_TOKEN_COOKIE, { ...this.baseOptions(), path: '/' });
-    res.clearCookie(REFRESH_TOKEN_COOKIE, {
-      ...this.baseOptions(),
-      path: REFRESH_TOKEN_COOKIE_PATH,
-    });
+  clear(res: Response, names: SessionCookieNames): void {
+    for (const cookie of [names.access, names.refresh]) {
+      res.clearCookie(cookie.name, {
+        ...this.baseOptions(),
+        path: cookie.path,
+      });
+    }
+  }
+
+  read(req: Request, name: string): string | undefined {
+    return (req.cookies as Record<string, string> | undefined)?.[name];
   }
 
   private baseOptions(): CookieOptions {

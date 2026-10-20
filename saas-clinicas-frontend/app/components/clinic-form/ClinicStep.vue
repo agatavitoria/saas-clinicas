@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { VForm } from 'vuetify/components'
-import type { ClinicSignupForm } from '~/types/clinic'
+import type { ClinicForm } from '~/types/clinic'
 
-const clinic = defineModel<ClinicSignupForm['clinic']>({ required: true })
+const clinic = defineModel<ClinicForm['clinic']>({ required: true })
 
 const form = ref<VForm>()
 
@@ -14,7 +14,7 @@ defineExpose({
 <template>
   <v-form ref="form" @submit.prevent>
     <p class="text-body-2 text-medium-emphasis mb-6">
-      Conte um pouco sobre a sua clínica. Esses dados aparecem para a equipe e
+      Dados de contato da clínica. Eles aparecem para a equipe e, no futuro,
       para os pacientes.
     </p>
 

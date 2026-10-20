@@ -16,16 +16,16 @@ const features = [
           A agenda da sua clínica, simples e organizada
         </h1>
         <p class="text-h6 text-medium-emphasis font-weight-regular mb-8">
-          Cadastre sua clínica em poucos minutos e comece a organizar
-          profissionais, pacientes e agendamentos.
+          Organize profissionais, pacientes e agendamentos da sua clínica em um
+          só lugar.
         </p>
         <v-btn
-          to="/cadastro"
+          to="/login"
           color="primary"
           size="x-large"
-          prepend-icon="mdi-plus"
+          prepend-icon="mdi-login"
         >
-          Cadastrar minha clínica
+          Entrar no painel
         </v-btn>
       </v-col>
     </v-row>

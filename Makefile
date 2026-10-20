@@ -4,7 +4,7 @@ FRONTEND_DIR := saas-clinicas-frontend
 # Permite `make up`, `make up back` e `make up front`
 TARGET := $(filter-out up,$(MAKECMDGOALS))
 
-.PHONY: install up back front db db-down migrate
+.PHONY: install up back front db db-down migrate seed
 
 # Instala as dependências dos dois projetos (a raiz não tem package.json)
 install:
@@ -35,9 +35,14 @@ db:
 db-down:
 	@docker compose down
 
-# Cria/aplica migrations no banco de desenvolvimento
+# Cria/aplica migrations no banco de desenvolvimento e roda a seed
 migrate: db
 	@cd $(BACKEND_DIR) && npx prisma migrate dev && npx prisma generate
+	@$(MAKE) --no-print-directory seed
+
+# Dados de desenvolvimento: admin master padrão (login admin / senha admin)
+seed: db
+	@cd $(BACKEND_DIR) && npm run db:seed
 
 # Alvos vazios para que `back` e `front` funcionem como argumentos de `up`
 back front:

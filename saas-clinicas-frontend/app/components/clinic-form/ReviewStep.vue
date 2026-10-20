@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { ClinicSignupForm } from '~/types/clinic'
+import type { ClinicForm } from '~/types/clinic'
 
-const props = defineProps<{ form: ClinicSignupForm }>()
+const props = defineProps<{ form: ClinicForm }>()
 
 const emit = defineEmits<{ edit: [step: number] }>()
 
@@ -11,7 +11,7 @@ const openHours = computed(() => props.form.businessHours.filter(hour => hour.op
 <template>
   <div>
     <p class="text-body-2 text-medium-emphasis mb-6">
-      Confira as informações antes de criar a clínica.
+      Confira as informações antes de criar a clínica. Anote a senha provisória para repassar ao administrador.
     </p>
 
     <v-card variant="outlined" class="mb-4">
@@ -51,6 +51,10 @@ const openHours = computed(() => props.form.businessHours.filter(hour => hour.op
       <v-card-text>
         <div class="text-body-1 font-weight-medium">{{ form.admin.name }}</div>
         <div>{{ form.admin.email }}</div>
+        <div class="mt-2">
+          Senha provisória:
+          <code class="font-weight-bold">{{ form.admin.temporaryPassword }}</code>
+        </div>
       </v-card-text>
     </v-card>
   </div>

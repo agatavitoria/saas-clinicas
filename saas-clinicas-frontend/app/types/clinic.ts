@@ -1,6 +1,6 @@
 import type { UserProfile } from './auth'
 
-/** Espelha o CreateClinicDto do backend (POST /clinics). */
+/** Espelha o CreateClinicDto do backend (POST /platform/clinics). */
 export interface CreateClinicPayload {
   clinic: {
     name: string
@@ -12,7 +12,7 @@ export interface CreateClinicPayload {
   admin: {
     name: string
     email: string
-    password: string
+    temporaryPassword: string
   }
 }
 
@@ -31,7 +31,18 @@ export interface ClinicDetails {
   email: string
   phone: string
   document: string | null
+  active: boolean
   businessHours: BusinessHour[]
+  createdAt: string
+}
+
+export interface ClinicSummary {
+  id: string
+  name: string
+  email: string
+  phone: string
+  active: boolean
+  usersCount: number
   createdAt: string
 }
 
@@ -40,8 +51,8 @@ export interface ClinicResponse {
   admin: UserProfile
 }
 
-/** Estado do formulário de cadastro (antes de virar payload). */
-export interface ClinicSignupForm {
+/** Estado do formulário de criação de clínica (antes de virar payload). */
+export interface ClinicForm {
   clinic: {
     name: string
     email: string
@@ -52,8 +63,7 @@ export interface ClinicSignupForm {
   admin: {
     name: string
     email: string
-    password: string
-    passwordConfirmation: string
+    temporaryPassword: string
   }
 }
 

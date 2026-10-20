@@ -48,6 +48,9 @@ export default defineNuxtConfig({
     '/painel': { ssr: false },
     '/painel/**': { ssr: false },
     '/login': { ssr: false },
+    '/trocar-senha': { ssr: false },
+    '/master': { ssr: false },
+    '/master/**': { ssr: false },
   },
 
   devServer: { port: 3000 },

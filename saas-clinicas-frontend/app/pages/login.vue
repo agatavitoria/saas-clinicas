@@ -12,26 +12,21 @@ const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const submitting = ref(false)
-const errorMessage = ref('')
+const loginError = ref('')
 
 async function submit() {
   const { valid } = (await form.value?.validate()) ?? { valid: false }
   if (!valid) return
 
   submitting.value = true
-  errorMessage.value = ''
+  loginError.value = ''
   try {
-    await login(email.value, password.value)
-    await navigateTo(safeRedirect(route.query.redirect))
+    const user = await login(email.value, password.value)
+    await navigateTo(user.mustChangePassword ? '/trocar-senha' : safeRedirect(route.query.redirect))
   }
   catch (error) {
-    const status = statusOf(error)
-    errorMessage.value
-      = status === 401
-        ? 'E-mail ou senha incorretos.'
-        : status === 429
-          ? 'Muitas tentativas. Aguarde um minuto e tente novamente.'
-          : 'Não foi possível conectar ao servidor. Tente novamente em instantes.'
+    loginError.value
+      = statusOf(error) === 401 ? 'E-mail ou senha incorretos.' : errorMessage(error)
   }
   finally {
     submitting.value = false
@@ -56,12 +51,12 @@ async function submit() {
 
       <v-card-text>
         <v-alert
-          v-if="errorMessage"
+          v-if="loginError"
           type="error"
           variant="tonal"
           density="compact"
           class="mb-4"
-          :text="errorMessage"
+          :text="loginError"
         />
 
         <v-form ref="form" @submit.prevent="submit">
@@ -103,11 +98,9 @@ async function submit() {
 
       <v-divider class="mx-4" />
 
-      <v-card-text class="text-center text-body-2">
-        Ainda não tem conta?
-        <NuxtLink to="/cadastro" class="text-primary font-weight-medium">
-          Cadastre sua clínica
-        </NuxtLink>
+      <v-card-text class="text-center text-body-2 text-medium-emphasis">
+        Esqueceu a senha? Peça ao administrador da sua clínica para
+        redefini-la.
       </v-card-text>
     </v-card>
   </v-container>

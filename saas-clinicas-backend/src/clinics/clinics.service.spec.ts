@@ -17,7 +17,7 @@ const dto: CreateClinicDto = {
   admin: {
     name: 'Ana Souza',
     email: 'ana@sorriso.com',
-    password: 'senha-segura',
+    temporaryPassword: 'senha-segura',
   },
 };
 
@@ -56,6 +56,7 @@ describe('ClinicsService', () => {
       name: 'Ana Souza',
       email: 'ana@sorriso.com',
       role: 'ADMIN',
+      mustChangePassword: true,
     });
     expect(result).toEqual({ clinic: { id: 'clinic-1' }, admin });
   });
@@ -66,8 +67,10 @@ describe('ClinicsService', () => {
     await service.create(dto);
 
     const { passwordHash } = create.mock.calls[0][0].data.users.create;
-    expect(passwordHash).not.toBe(dto.admin.password);
-    expect(await argon2.verify(passwordHash, dto.admin.password)).toBe(true);
+    expect(passwordHash).not.toBe(dto.admin.temporaryPassword);
+    expect(await argon2.verify(passwordHash, dto.admin.temporaryPassword)).toBe(
+      true,
+    );
   });
 
   it('never selects the password hash in the response', async () => {

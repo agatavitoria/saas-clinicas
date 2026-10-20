@@ -1,5 +1,6 @@
 import type { UserProfile } from '~/types/auth'
 
+/** Sessão do usuário de clínica. */
 export function useAuth() {
   const api = useApi()
   const user = useAuthUser()
@@ -21,10 +22,19 @@ export function useAuth() {
     return loaded.value ? user.value : fetchUser()
   }
 
-  async function login(email: string, password: string): Promise<void> {
+  async function login(email: string, password: string): Promise<UserProfile> {
     const response = await api<{ user: UserProfile }>('/auth/login', {
       method: 'POST',
       body: { email, password },
+    })
+    setUser(response.user)
+    return response.user
+  }
+
+  async function changePassword(currentPassword: string, newPassword: string) {
+    const response = await api<{ user: UserProfile }>('/auth/change-password', {
+      method: 'POST',
+      body: { currentPassword, newPassword },
     })
     setUser(response.user)
   }
@@ -44,5 +54,7 @@ export function useAuth() {
     loaded.value = true
   }
 
-  return { user, login, logout, ensureLoaded, setUser }
+  const isAdmin = computed(() => user.value?.role === 'ADMIN')
+
+  return { user, isAdmin, login, logout, changePassword, ensureLoaded }
 }

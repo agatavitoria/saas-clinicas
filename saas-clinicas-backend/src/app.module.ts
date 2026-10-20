@@ -4,6 +4,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { ClinicsModule } from './clinics/clinics.module.js';
 import { validateEnv } from './config/env.validation.js';
 import { HealthModule } from './health/health.module.js';
+import { PlatformModule } from './platform/platform.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { UsersModule } from './users/users.module.js';
 
@@ -15,6 +16,7 @@ import { UsersModule } from './users/users.module.js';
     HealthModule,
     ClinicsModule,
     UsersModule,
+    PlatformModule,
   ],
 })
 export class AppModule {}

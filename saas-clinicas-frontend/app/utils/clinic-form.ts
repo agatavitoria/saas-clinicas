@@ -1,4 +1,4 @@
-import type { BusinessHourForm, ClinicSignupForm, CreateClinicPayload } from '~/types/clinic'
+import type { BusinessHourForm, ClinicForm, CreateClinicPayload } from '~/types/clinic'
 
 /** Ordem de exibição: semana começando na segunda. */
 export const WEEKDAYS = [
@@ -16,7 +16,7 @@ export function weekdayLabel(weekday: number): string {
 }
 
 /** Seg–sex abertos das 08:00 às 18:00; sábado sugerido até 12:00. */
-export function createEmptySignupForm(): ClinicSignupForm {
+export function createEmptyClinicForm(): ClinicForm {
   return {
     clinic: { name: '', email: '', phone: '', document: '' },
     businessHours: WEEKDAYS.map<BusinessHourForm>(({ value }) => ({
@@ -25,11 +25,11 @@ export function createEmptySignupForm(): ClinicSignupForm {
       opensAt: '08:00',
       closesAt: value === 6 ? '12:00' : '18:00',
     })),
-    admin: { name: '', email: '', password: '', passwordConfirmation: '' },
+    admin: { name: '', email: '', temporaryPassword: generateTemporaryPassword() },
   }
 }
 
-export function toCreateClinicPayload(form: ClinicSignupForm): CreateClinicPayload {
+export function toCreateClinicPayload(form: ClinicForm): CreateClinicPayload {
   const document = onlyDigits(form.clinic.document)
 
   return {
@@ -45,7 +45,7 @@ export function toCreateClinicPayload(form: ClinicSignupForm): CreateClinicPaylo
     admin: {
       name: form.admin.name.trim(),
       email: form.admin.email.trim(),
-      password: form.admin.password,
+      temporaryPassword: form.admin.temporaryPassword,
     },
   }
 }

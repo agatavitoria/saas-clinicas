@@ -16,7 +16,7 @@ const validPayload = () => ({
   admin: {
     name: 'Ana Souza',
     email: 'ANA@sorriso.com',
-    password: 'senha-segura',
+    temporaryPassword: 'senha-segura',
   },
 });
 
@@ -100,8 +100,8 @@ describe('CreateClinicDto', () => {
 
   it('rejects a short password', () => {
     const payload = validPayload();
-    payload.admin.password = '1234567';
+    payload.admin.temporaryPassword = '1234567';
 
-    expect(errorPaths(payload)).toEqual(['admin.password']);
+    expect(errorPaths(payload)).toEqual(['admin.temporaryPassword']);
   });
 });

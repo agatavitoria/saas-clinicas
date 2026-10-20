@@ -1,12 +1,14 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { USER_PROFILE_SELECT } from '../auth/auth-user.js';
+import { conflict } from '../common/api-error.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { UserRole } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type {
   ClinicDetails,
   ClinicResponse,
+  ClinicSummary,
 } from './dto/clinic-response.dto.js';
 import type { CreateClinicDto } from './dto/create-clinic.dto.js';
 
@@ -18,6 +20,7 @@ const CLINIC_DETAILS_SELECT = {
   email: true,
   phone: true,
   document: true,
+  active: true,
   createdAt: true,
   businessHours: {
     select: { weekday: true, opensAt: true, closesAt: true },
@@ -31,10 +34,11 @@ export class ClinicsService {
 
   /**
    * Cria a clínica (tenant), seus horários e o usuário administrador numa
-   * única escrita aninhada, que o Prisma executa em uma transação.
+   * única escrita aninhada, que o Prisma executa em uma transação. O admin
+   * recebe uma senha provisória e precisa trocá-la no primeiro login.
    */
   async create(dto: CreateClinicDto): Promise<ClinicResponse> {
-    const passwordHash = await argon2.hash(dto.admin.password);
+    const passwordHash = await argon2.hash(dto.admin.temporaryPassword);
 
     try {
       const { users, ...clinic } = await this.prisma.clinic.create({
@@ -56,6 +60,7 @@ export class ClinicsService {
               email: dto.admin.email,
               passwordHash,
               role: UserRole.ADMIN,
+              mustChangePassword: true,
             },
           },
         },
@@ -72,7 +77,7 @@ export class ClinicsService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === UNIQUE_CONSTRAINT_VIOLATION
       ) {
-        throw new ConflictException('Email already in use');
+        throw conflict('EMAIL_IN_USE', 'Email already in use');
       }
       throw error;
     }
@@ -83,5 +88,57 @@ export class ClinicsService {
     return this.prisma
       .forTenant(tenantId)
       .clinic.findFirstOrThrow({ select: CLINIC_DETAILS_SELECT });
+  }
+
+  /** Todas as clínicas (uso exclusivo do admin master). */
+  async findAll(): Promise<ClinicSummary[]> {
+    const clinics = await this.prisma.clinic.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        active: true,
+        createdAt: true,
+        _count: { select: { users: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return clinics.map(({ _count, ...clinic }) => ({
+      ...clinic,
+      usersCount: _count.users,
+    }));
+  }
+
+  async findOne(id: string): Promise<ClinicDetails> {
+    const clinic = await this.prisma
+      .forTenant(id)
+      .clinic.findFirst({ select: CLINIC_DETAILS_SELECT });
+    if (!clinic) throw new NotFoundException('Clinic not found');
+    return clinic;
+  }
+
+  /** Ativa ou inativa a clínica. Inativar encerra as sessões de toda a equipe. */
+  async setActive(id: string, active: boolean): Promise<ClinicDetails> {
+    await this.findOne(id);
+
+    const db = this.prisma.forTenant(id);
+    const [clinic] = await db.$transaction([
+      db.clinic.update({
+        where: { id },
+        data: { active },
+        select: CLINIC_DETAILS_SELECT,
+      }),
+      ...(active
+        ? []
+        : [
+            db.refreshToken.updateMany({
+              where: { revokedAt: null },
+              data: { revokedAt: new Date() },
+            }),
+          ]),
+    ]);
+    return clinic;
   }
 }

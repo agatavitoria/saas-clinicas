@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useDisplay } from 'vuetify'
 
-const { user, logout } = useAuth()
+const { user, isAdmin, logout } = useAuth()
 const { mdAndUp } = useDisplay()
 
 const drawer = ref(mdAndUp.value)
@@ -16,12 +16,20 @@ watch(user, (current) => {
   if (!current) navigateTo('/login')
 })
 
-const NAV_ITEMS = [
+const navItems = computed(() => [
   { title: 'Painel', icon: 'mdi-view-dashboard-outline', to: '/painel' },
+  ...(isAdmin.value
+    ? [{ title: 'Equipe', icon: 'mdi-account-group-outline', to: '/painel/equipe' }]
+    : []),
   { title: 'Agenda', icon: 'mdi-calendar-month-outline', soon: true },
   { title: 'Pacientes', icon: 'mdi-account-heart-outline', soon: true },
   { title: 'Profissionais', icon: 'mdi-stethoscope', soon: true },
-]
+])
+
+const route = useRoute()
+const pageTitle = computed(() =>
+  navItems.value.find(item => item.to === route.path)?.title ?? 'Painel',
+)
 
 async function onLogout() {
   loggingOut.value = true
@@ -44,7 +52,7 @@ async function onLogout() {
 
       <v-list nav density="comfortable" color="primary">
         <v-list-item
-          v-for="item in NAV_ITEMS"
+          v-for="item in navItems"
           :key="item.title"
           :to="item.to"
           :prepend-icon="item.icon"
@@ -69,7 +77,7 @@ async function onLogout() {
         />
       </template>
 
-      <v-app-bar-title>Painel</v-app-bar-title>
+      <v-app-bar-title>{{ pageTitle }}</v-app-bar-title>
 
       <template #append>
         <v-menu v-if="user" location="bottom end">
@@ -98,6 +106,7 @@ async function onLogout() {
             </v-card-text>
             <v-divider />
             <v-list density="compact">
+              <v-list-item prepend-icon="mdi-lock-reset" title="Trocar senha" to="/trocar-senha" />
               <v-list-item
                 prepend-icon="mdi-logout"
                 title="Sair"
