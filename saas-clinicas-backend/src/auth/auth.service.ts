@@ -168,7 +168,6 @@ export class AuthService {
     const payload: TenantAccessTokenPayload = {
       sub: user.id,
       tenantId: user.tenantId,
-      role: user.role,
     };
     const accessToken = await this.jwt.signAsync(payload, {
       audience: TENANT_AUDIENCE,

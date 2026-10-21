@@ -77,7 +77,7 @@ export class ClinicsService {
                 name: dto.admin.name,
                 email: dto.admin.email,
                 passwordHash,
-                role: UserRole.ADMIN,
+                roles: [UserRole.ADMIN],
                 mustChangePassword: true,
               },
             },
@@ -96,7 +96,7 @@ export class ClinicsService {
         await this.audit.log(tx, 'user.created', {
           tenantId: clinic.id,
           target: { type: 'User', id: admin.id, label: admin.name },
-          metadata: { role: admin.role },
+          metadata: { roles: admin.roles },
         });
 
         return { clinic: withDeletionInfo(clinic), admin };

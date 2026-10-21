@@ -24,7 +24,8 @@ export type ApiErrorCode =
   | 'CPF_IN_USE'
   | 'PATIENT_INACTIVE'
   | 'INVALID_AMENDMENT'
-  | 'NOT_RECORD_AUTHOR';
+  | 'NOT_RECORD_AUTHOR'
+  | 'CANNOT_REMOVE_OWN_ADMIN';
 
 type ExceptionClass = new (body: object) => HttpException;
 

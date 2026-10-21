@@ -43,18 +43,18 @@ describe('Patients (e2e)', () => {
     admin = asCookieHeader(alfa.cookies);
     await createUser(prisma, alfa.clinicId, {
       email: 'rec@alfa.com',
-      role: 'RECEPTION',
+      roles: ['RECEPTION'],
     });
     proId = (
       await createUser(prisma, alfa.clinicId, {
         email: 'pro@alfa.com',
-        role: 'PROFESSIONAL',
+        roles: ['PROFESSIONAL'],
         name: 'Dra. Paula',
       })
     ).id;
     await createUser(prisma, alfa.clinicId, {
       email: 'pro2@alfa.com',
-      role: 'PROFESSIONAL',
+      roles: ['PROFESSIONAL'],
     });
     reception = asCookieHeader(await login(app, 'rec@alfa.com'));
     pro = asCookieHeader(await login(app, 'pro@alfa.com'));
@@ -271,7 +271,11 @@ describe('Patients (e2e)', () => {
         .expect(201);
       expect(created.body).toMatchObject({
         notes: 'Primeira consulta. Queixa de dor lombar.',
-        professional: { id: proId, name: 'Dra. Paula', role: 'PROFESSIONAL' },
+        professional: {
+          id: proId,
+          name: 'Dra. Paula',
+          roles: ['PROFESSIONAL'],
+        },
         amendments: [],
       });
 

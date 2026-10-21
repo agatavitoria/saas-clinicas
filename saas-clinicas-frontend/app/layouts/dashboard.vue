@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { useDisplay } from 'vuetify'
 
-const { user, isAdmin, logout } = useAuth()
+const { user, isAdmin, logout, refreshUser } = useAuth()
 const { refresh: refreshClinic } = useClinic()
 
 // Situação da clínica (ex.: exclusão agendada) para o aviso no topo
 onMounted(refreshClinic)
+
+// Papéis podem ter sido alterados por outra pessoa: ao voltar para a aba,
+// recarrega o perfil (o backend já aplica a mudança; isto atualiza a tela)
+function onVisible() {
+  if (document.visibilityState === 'visible') refreshUser()
+}
+onMounted(() => document.addEventListener('visibilitychange', onVisible))
+onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisible))
 const { mdAndUp } = useDisplay()
 
 const drawer = ref(mdAndUp.value)
@@ -110,9 +118,7 @@ async function onLogout() {
               </template>
             </v-card-item>
             <v-card-text class="pt-0">
-              <v-chip size="small" variant="tonal" :color="ROLE_COLORS[user.role]">
-                {{ ROLE_LABELS[user.role] }}
-              </v-chip>
+              <RoleChips :roles="user.roles" />
             </v-card-text>
             <v-divider />
             <v-list density="compact">

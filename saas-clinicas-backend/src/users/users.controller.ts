@@ -16,6 +16,7 @@ import { UserRole } from '../generated/prisma/enums.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { SetActiveDto } from './dto/set-active.dto.js';
+import { SetRolesDto } from './dto/set-roles.dto.js';
 import type { TeamMember } from './team-member.js';
 import { UsersService } from './users.service.js';
 
@@ -49,6 +50,21 @@ export class UsersController {
       user.tenantId,
       id,
       dto.active,
+      user.userId,
+    );
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Patch(':id/roles')
+  setRoles(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetRolesDto,
+  ): Promise<TeamMember> {
+    return this.usersService.setRoles(
+      user.tenantId,
+      id,
+      dto.roles,
       user.userId,
     );
   }

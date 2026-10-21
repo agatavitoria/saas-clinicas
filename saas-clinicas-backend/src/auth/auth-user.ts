@@ -4,7 +4,8 @@ import type { UserRole } from '../generated/prisma/enums.js';
 export interface AuthUser {
   userId: string;
   tenantId: string;
-  role: UserRole;
+  /** Papéis atuais (lidos do banco a cada requisição). */
+  roles: UserRole[];
 }
 
 /** Administrador da plataforma autenticado. */
@@ -12,10 +13,10 @@ export interface AuthPlatformAdmin {
   adminId: string;
 }
 
+/** Os papéis não vão no token: o guard lê do banco, então mudanças valem na hora. */
 export interface TenantAccessTokenPayload {
   sub: string;
   tenantId: string;
-  role: UserRole;
 }
 
 export interface PlatformAccessTokenPayload {
@@ -28,7 +29,7 @@ export interface UserProfile {
   tenantId: string;
   name: string;
   email: string;
-  role: UserRole;
+  roles: UserRole[];
   mustChangePassword: boolean;
 }
 
@@ -37,7 +38,7 @@ export const USER_PROFILE_SELECT = {
   tenantId: true,
   name: true,
   email: true,
-  role: true,
+  roles: true,
   mustChangePassword: true,
 } as const;
 
@@ -52,3 +53,9 @@ export const PLATFORM_ADMIN_PROFILE_SELECT = {
   name: true,
   email: true,
 } as const;
+
+/** O usuário tem pelo menos um dos papéis informados. */
+export const hasRole = (
+  user: { roles: readonly UserRole[] },
+  ...roles: UserRole[]
+): boolean => roles.some((role) => user.roles.includes(role));

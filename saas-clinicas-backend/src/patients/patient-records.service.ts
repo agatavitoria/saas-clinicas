@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service.js';
-import type { AuthUser } from '../auth/auth-user.js';
+import { type AuthUser, hasRole } from '../auth/auth-user.js';
 import { badRequest, conflict, forbidden } from '../common/api-error.js';
 import { UserRole } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -126,7 +126,7 @@ export class PatientRecordsService {
     }
     if (
       original.professionalId !== auth.userId &&
-      auth.role !== UserRole.ADMIN
+      !hasRole(auth, UserRole.ADMIN)
     ) {
       throw forbidden(
         'NOT_RECORD_AUTHOR',

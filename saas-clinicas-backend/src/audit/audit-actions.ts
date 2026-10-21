@@ -16,6 +16,7 @@ export const AUDIT_ACTIONS = [
   'user.deactivated',
   'user.reactivated',
   'user.password_reset',
+  'user.roles_changed',
   // Clínica
   'clinic.created',
   'clinic.deactivated',

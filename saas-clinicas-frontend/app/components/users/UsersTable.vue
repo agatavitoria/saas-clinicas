@@ -30,7 +30,7 @@ const inactiveCount = computed(() => users.value.filter(user => !user.active).le
 
 const HEADERS = [
   { title: 'Usuário', key: 'name' },
-  { title: 'Papel', key: 'role', width: 160 },
+  { title: 'Papéis', key: 'roles', sortable: false, width: 220 },
   { title: 'Status', key: 'active', width: 200 },
   { title: '', key: 'actions', sortable: false, align: 'end' as const, width: 64 },
 ]
@@ -66,6 +66,22 @@ function onReset(user: TeamMember, password: string) {
 function askStatusChange(user: TeamMember) {
   selected.value = user
   statusDialog.value = true
+}
+
+const editingRoles = ref(false)
+
+function askRoles(user: TeamMember) {
+  selected.value = user
+  editingRoles.value = true
+}
+
+const { refreshUser } = useAuth()
+
+function onRolesSaved(user: TeamMember) {
+  notify(`Papéis de ${user.name} atualizados.`)
+  // Mudou os próprios papéis: o menu e as permissões da tela também mudam
+  if (user.id === props.currentUserId) refreshUser()
+  afterChange()
 }
 
 function askReset(user: TeamMember) {
@@ -158,7 +174,7 @@ async function copyCredentials() {
     >
       <template #[`item.name`]="{ item }">
         <div class="d-flex align-center ga-3 py-2" :class="{ 'text-disabled': !item.active }">
-          <v-avatar :color="ROLE_COLORS[item.role]" variant="tonal" size="36">
+          <v-avatar :color="ROLE_COLORS[primaryRole(item.roles)]" variant="tonal" size="36">
             <span class="text-body-2">{{ initials(item.name) }}</span>
           </v-avatar>
           <div>
@@ -171,10 +187,8 @@ async function copyCredentials() {
         </div>
       </template>
 
-      <template #[`item.role`]="{ item }">
-        <v-chip size="small" variant="tonal" :color="ROLE_COLORS[item.role]">
-          {{ ROLE_LABELS[item.role] }}
-        </v-chip>
+      <template #[`item.roles`]="{ item }">
+        <RoleChips :roles="item.roles" />
       </template>
 
       <template #[`item.active`]="{ item }">
@@ -200,6 +214,12 @@ async function copyCredentials() {
           </template>
           <v-list density="compact">
             <v-list-item
+              prepend-icon="mdi-badge-account-outline"
+              title="Editar papéis"
+              :disabled="!item.active"
+              @click="askRoles(item)"
+            />
+            <v-list-item
               prepend-icon="mdi-lock-reset"
               title="Redefinir senha"
               :disabled="!item.active"
@@ -218,6 +238,13 @@ async function copyCredentials() {
     </v-data-table>
 
     <UsersUserFormDialog v-model="creating" :base-path="basePath" @created="onCreated" />
+    <UsersRolesDialog
+      v-model="editingRoles"
+      :base-path="basePath"
+      :user="selected"
+      :current-user-id="currentUserId"
+      @saved="onRolesSaved"
+    />
     <UsersResetPasswordDialog v-model="resetting" :base-path="basePath" :user="selected" @reset="onReset" />
 
     <ConfirmDialog

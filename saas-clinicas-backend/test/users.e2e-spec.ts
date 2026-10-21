@@ -35,7 +35,7 @@ describe('Team management by the clinic admin (e2e)', () => {
   const newUser = {
     name: 'Rita Recepção',
     email: 'rita@alfa.com',
-    role: 'RECEPTION',
+    roles: ['RECEPTION'],
     temporaryPassword: 'provisoria-1',
   };
 
@@ -53,7 +53,7 @@ describe('Team management by the clinic admin (e2e)', () => {
 
       expect(response.body).toMatchObject({
         email: 'rita@alfa.com',
-        role: 'RECEPTION',
+        roles: ['RECEPTION'],
         active: true,
         mustChangePassword: true,
       });
@@ -76,7 +76,7 @@ describe('Team management by the clinic admin (e2e)', () => {
 
     it('validates the payload', async () => {
       await as(admin)
-        .post('/api/users', { ...newUser, role: 'SUPERUSER' })
+        .post('/api/users', { ...newUser, roles: ['SUPERUSER'] })
         .expect(400);
       await as(admin)
         .post('/api/users', { ...newUser, temporaryPassword: '123' })
@@ -91,7 +91,7 @@ describe('Team management by the clinic admin (e2e)', () => {
     it('lets non-admins see the team but not manage it', async () => {
       await createUser(prisma, clinic.clinicId, {
         email: 'pro@alfa.com',
-        role: 'PROFESSIONAL',
+        roles: ['PROFESSIONAL'],
       });
       const pro = asCookieHeader(await login(app, 'pro@alfa.com'));
 
@@ -112,7 +112,7 @@ describe('Team management by the clinic admin (e2e)', () => {
     it('deactivating ends the open session immediately and blocks login', async () => {
       const user = await createUser(prisma, clinic.clinicId, {
         email: 'pro@alfa.com',
-        role: 'PROFESSIONAL',
+        roles: ['PROFESSIONAL'],
       });
       const session = await login(app, 'pro@alfa.com');
 
@@ -134,7 +134,7 @@ describe('Team management by the clinic admin (e2e)', () => {
     it('reactivating allows login again', async () => {
       const user = await createUser(prisma, clinic.clinicId, {
         email: 'pro@alfa.com',
-        role: 'PROFESSIONAL',
+        roles: ['PROFESSIONAL'],
       });
       await as(admin)
         .patch(`/api/users/${user.id}/status`, { active: false })
@@ -149,7 +149,7 @@ describe('Team management by the clinic admin (e2e)', () => {
     it('does not let the admin deactivate themselves', async () => {
       await createUser(prisma, clinic.clinicId, {
         email: 'outro-admin@alfa.com',
-        role: 'ADMIN',
+        roles: ['ADMIN'],
       });
 
       const response = await as(admin)
@@ -163,7 +163,7 @@ describe('Team management by the clinic admin (e2e)', () => {
       // aqui quem age é sempre um admin ativo e não pode inativar a si mesmo
       const second = await createUser(prisma, clinic.clinicId, {
         email: 'outro-admin@alfa.com',
-        role: 'ADMIN',
+        roles: ['ADMIN'],
       });
 
       const response = await as(admin)
@@ -201,7 +201,7 @@ describe('Team management by the clinic admin (e2e)', () => {
     it('sets a new temporary password and ends the open sessions', async () => {
       const user = await createUser(prisma, clinic.clinicId, {
         email: 'pro@alfa.com',
-        role: 'PROFESSIONAL',
+        roles: ['PROFESSIONAL'],
       });
       const session = asCookieHeader(await login(app, 'pro@alfa.com'));
 

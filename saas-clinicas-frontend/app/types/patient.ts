@@ -47,7 +47,7 @@ export interface PatientRecordEntry {
   occurredAt: string
   notes: string
   createdAt: string
-  professional: { id: string, name: string, role: UserRole }
+  professional: { id: string, name: string, roles: UserRole[] }
 }
 
 export interface PatientRecord extends PatientRecordEntry {

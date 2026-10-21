@@ -59,18 +59,19 @@ model ClinicBusinessHour {
 }
 
 model User {
-  id                 String   @id @default(uuid()) @db.Uuid
-  tenantId           String   @db.Uuid
+  id                 String     @id @default(uuid()) @db.Uuid
+  tenantId           String     @db.Uuid
   name               String
   /// Único na plataforma: o login será feito por e-mail
-  email              String   @unique
+  email              String     @unique
   passwordHash       String
-  role               UserRole
-  active             Boolean  @default(true)
+  /// Um usuário pode ter vários papéis (ex.: admin e profissional); pelo menos um
+  roles              UserRole[]
+  active             Boolean    @default(true)
   /// Senha provisória: o usuário precisa trocá-la no próximo login
-  mustChangePassword Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  mustChangePassword Boolean    @default(false)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   clinic         Clinic          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   refreshTokens  RefreshToken[]

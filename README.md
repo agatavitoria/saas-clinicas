@@ -100,6 +100,12 @@ sistema guarda dados de saúde.
 | Recepção (`RECEPTION`)  | `/login`          | cadastra e edita pacientes; consulta o prontuário           |
 | Profissional (`PROFESSIONAL`) | `/login`    | consulta pacientes e registra atendimentos e adendos        |
 
+Um usuário pode ter **vários papéis**, por exemplo administrador e
+profissional ao mesmo tempo, e as permissões somam. O admin define os papéis
+em **Equipe → Editar papéis**. Ninguém tira o próprio papel de admin, e a
+clínica nunca fica sem um admin ativo. Os papéis não vão no token: o backend
+lê do banco a cada requisição, então uma mudança vale na hora.
+
 Permissões sobre pacientes:
 
 | Ação                                     | Recepção | Profissional | Admin |
@@ -256,7 +262,7 @@ erDiagram
         string name
         string email UK "único na plataforma (login)"
         string passwordHash "argon2id"
-        enum role "ADMIN, PROFESSIONAL, RECEPTION"
+        enum roles "lista: ADMIN, PROFESSIONAL, RECEPTION"
         boolean active
         boolean mustChangePassword "senha provisória"
         datetime createdAt
@@ -370,7 +376,7 @@ Existem duas sessões independentes, com as mesmas regras:
 |                | Clínica                                  | Admin master                                         |
 | -------------- | ---------------------------------------- | ---------------------------------------------------- |
 | Login          | `POST /api/auth/login`                   | `POST /api/platform/auth/login`                      |
-| Access token   | cookie `access_token` (JWT `aud: tenant`) | cookie `platform_access_token` (JWT `aud: platform`) |
+| Access token   | cookie `access_token` (JWT `aud: tenant`, com usuário e clínica) | cookie `platform_access_token` (JWT `aud: platform`) |
 | Refresh token  | cookie `refresh_token` (path `/api/auth`) | cookie `platform_refresh_token` (path `/api/platform/auth`) |
 
 - Os cookies são `httpOnly` e `SameSite=Lax`, e o JavaScript da página não
@@ -657,6 +663,7 @@ que o frontend traduz para uma mensagem em português.
 | GET    | `/api/users`                      | logado       | equipe da clínica                           |
 | POST   | `/api/users`                      | `ADMIN`      | cria usuário com senha provisória           |
 | PATCH  | `/api/users/:id/status`           | `ADMIN`      | `{ active }`: inativa ou reativa            |
+| PATCH  | `/api/users/:id/roles`            | `ADMIN`      | `{ roles }`: define os papéis (pelo menos um) |
 | POST   | `/api/users/:id/reset-password`   | `ADMIN`      | `{ temporaryPassword }`                     |
 | GET    | `/api/patients`                   | logado       | busca (`search`), `status` e paginação      |
 | POST   | `/api/patients`                   | `RECEPTION`, `ADMIN` | cadastra paciente                   |
@@ -684,6 +691,7 @@ que o frontend traduz para uma mensagem em português.
 | GET    | `/api/platform/clinics/:id/users`                   | equipe da clínica                           |
 | POST   | `/api/platform/clinics/:id/users`                   | cria usuário                                |
 | PATCH  | `/api/platform/clinics/:id/users/:userId/status`    | inativa ou reativa                          |
+| PATCH  | `/api/platform/clinics/:id/users/:userId/roles`     | define os papéis                            |
 | POST   | `/api/platform/clinics/:id/users/:userId/reset-password` | nova senha provisória                  |
 | GET    | `/api/platform/audit-logs`                          | histórico de toda a plataforma (filtro `tenantId`) |
 | GET    | `/api/platform/clinics/:id/audit-logs`              | histórico de uma clínica                    |

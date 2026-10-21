@@ -19,7 +19,7 @@ As subpastas NÃO devem ter `.git` próprio.
 ## Domínio (escopo inicial)
 
 - **Clínica (tenant)**: nome, dados de contato, configurações de horário
-- **Usuário**: pertence a uma clínica; papéis: administrador, profissional, recepção
+- **Usuário**: pertence a uma clínica; tem **um ou mais** papéis (`roles`): administrador, profissional, recepção. As permissões somam
 - **Paciente**: pertence a uma clínica; CPF único dentro da clínica (o mesmo
   CPF pode existir em outra, sem vínculo). Inativado, nunca apagado.
 - **Atendimento (prontuário)**: registro imutável de um profissional sobre um
@@ -46,7 +46,7 @@ As subpastas NÃO devem ter `.git` próprio.
 - UI do frontend: Vuetify (Material Design 3), integrado via `vite-plugin-vuetify`
 - Autenticação: JWT em cookies httpOnly, com duas sessões independentes:
   - **clínica:** cookies `access_token`/`refresh_token`, JWT `aud: 'tenant'`
-    com `sub`, `tenantId` e `role`;
+    com `sub` e `tenantId` (os papéis não vão no token: o guard lê do banco);
   - **admin master (plataforma):** tabela `PlatformAdmin`, cookies
     `platform_access_token`/`platform_refresh_token` e JWT `aud: 'platform'`.
 
@@ -62,7 +62,9 @@ As subpastas NÃO devem ter `.git` próprio.
 - Backend: guard global `JwtAuthGuard`. Por padrão, toda rota exige a sessão
   de clínica.
   - `@Public()` libera a rota; `@PlatformRoute()` exige a sessão do master.
-  - `@Roles('ADMIN')` restringe por papel (`RolesGuard`).
+  - `@Roles('ADMIN')` restringe por papel (`RolesGuard`): basta ter um dos
+    papéis exigidos. No código, use `hasRole(user, ...)`, nunca compare com um
+    papel único.
   - Com `mustChangePassword`, só rotas com `@AllowPendingPasswordChange()`
     respondem.
   - O guard confere no banco, a cada requisição, se o usuário e a clínica

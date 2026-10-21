@@ -1,4 +1,5 @@
 import type { AuditLogEntry } from '~/types/audit'
+import type { UserRole } from '~/types/auth'
 
 interface ActionInfo {
   /** Nome do filtro, ex.: "Usuário desativado" */
@@ -25,6 +26,7 @@ export const AUDIT_ACTIONS: Record<string, ActionInfo> = {
   'user.created': { label: 'Usuário criado', icon: 'mdi-account-plus-outline', color: 'success', sentence: 'criou o usuário {target}' },
   'user.deactivated': { label: 'Usuário desativado', icon: 'mdi-account-off-outline', color: 'error', sentence: 'desativou o usuário {target}' },
   'user.reactivated': { label: 'Usuário reativado', icon: 'mdi-account-check-outline', color: 'success', sentence: 'reativou o usuário {target}' },
+  'user.roles_changed': { label: 'Papéis alterados', icon: 'mdi-badge-account-outline', color: 'primary', sentence: 'alterou os papéis de {target}' },
   'user.password_reset': { label: 'Senha redefinida', icon: 'mdi-key-change', color: 'warning', sentence: 'redefiniu a senha de {target}' },
   'clinic.created': { label: 'Clínica criada', icon: 'mdi-domain-plus', color: 'success', sentence: 'criou a clínica {target}' },
   'clinic.deactivated': { label: 'Clínica desativada', icon: 'mdi-domain-off', color: 'error', sentence: 'desativou a clínica {target}' },
@@ -84,9 +86,13 @@ export function auditSentence(entry: AuditLogEntry): SentencePart[] {
 
 /** Complemento a partir do metadata, quando houver. */
 function auditDetail(entry: AuditLogEntry): string | null {
-  const { role, scheduledFor, fields } = entry.metadata
-  if (entry.action === 'user.created' && typeof role === 'string' && role in ROLE_LABELS) {
-    return `como ${ROLE_LABELS[role as keyof typeof ROLE_LABELS].toLowerCase()}`
+  const { roles, scheduledFor, fields } = entry.metadata
+  if (entry.action === 'user.created' && Array.isArray(roles)) {
+    return `como ${rolesLabel(roles as UserRole[]).toLowerCase()}`
+  }
+  if (entry.action === 'user.roles_changed' && roles && typeof roles === 'object') {
+    const { from, to } = roles as { from?: UserRole[], to?: UserRole[] }
+    if (from && to) return `de ${rolesLabel(from).toLowerCase()} para ${rolesLabel(to).toLowerCase()}`
   }
   if (entry.action === 'patient.updated' && Array.isArray(fields)) {
     return `campos: ${fields.map(field => PATIENT_FIELD_LABELS[field as string] ?? field).join(', ')}`

@@ -174,14 +174,12 @@ const COMING_SOON = [
                 :subtitle="member.email"
               >
                 <template #prepend>
-                  <v-avatar :color="ROLE_COLORS[member.role]" variant="tonal">
+                  <v-avatar :color="ROLE_COLORS[primaryRole(member.roles)]" variant="tonal">
                     {{ initials(member.name) }}
                   </v-avatar>
                 </template>
                 <template #append>
-                  <v-chip size="small" variant="tonal" :color="ROLE_COLORS[member.role]">
-                    {{ ROLE_LABELS[member.role] }}
-                  </v-chip>
+                  <RoleChips :roles="member.roles" />
                 </template>
               </v-list-item>
             </v-list>

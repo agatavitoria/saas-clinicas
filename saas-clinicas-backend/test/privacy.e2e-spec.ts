@@ -90,7 +90,7 @@ describe('Privacy / LGPD (e2e)', () => {
       const beta = await signUpClinic(app, 'beta');
       await createUser(prisma, alfa.clinicId, {
         email: 'rec@alfa.com',
-        role: 'RECEPTION',
+        roles: ['RECEPTION'],
       });
       const reception = asCookieHeader(await login(app, 'rec@alfa.com'));
 
@@ -155,7 +155,7 @@ describe('Privacy / LGPD (e2e)', () => {
     it('is not available to non-admins', async () => {
       await createUser(prisma, alfa.clinicId, {
         email: 'rec@alfa.com',
-        role: 'RECEPTION',
+        roles: ['RECEPTION'],
       });
       const reception = asCookieHeader(await login(app, 'rec@alfa.com'));
 
@@ -172,7 +172,7 @@ describe('Privacy / LGPD (e2e)', () => {
     it('confirming schedules the deletion in 30 days and makes the clinic read-only', async () => {
       await createUser(prisma, alfa.clinicId, {
         email: 'rec@alfa.com',
-        role: 'RECEPTION',
+        roles: ['RECEPTION'],
       });
       await requestDeletion().expect(200);
 
@@ -205,7 +205,7 @@ describe('Privacy / LGPD (e2e)', () => {
         .send({
           name: 'Novo',
           email: 'novo@alfa.com',
-          role: 'RECEPTION',
+          roles: ['RECEPTION'],
           temporaryPassword: 'provisoria-1',
         })
         .expect(403);
@@ -229,7 +229,7 @@ describe('Privacy / LGPD (e2e)', () => {
     it('the clinic admin can cancel during the grace period', async () => {
       await createUser(prisma, alfa.clinicId, {
         email: 'rec@alfa.com',
-        role: 'RECEPTION',
+        roles: ['RECEPTION'],
       });
       await requestDeletion().expect(200);
       await masterPost('/deletion/confirm').expect(200);

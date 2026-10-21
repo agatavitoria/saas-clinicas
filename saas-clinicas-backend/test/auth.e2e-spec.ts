@@ -46,7 +46,7 @@ describe('Auth (e2e)', () => {
 
       expect(response.body.user).toMatchObject({
         email: 'admin@sorriso.com',
-        role: 'ADMIN',
+        roles: ['ADMIN'],
       });
       expect(response.body.user).not.toHaveProperty('passwordHash');
 
@@ -103,7 +103,7 @@ describe('Auth (e2e)', () => {
 
       expect(response.body).toMatchObject({
         email: 'admin@sorriso.com',
-        role: 'ADMIN',
+        roles: ['ADMIN'],
       });
     });
   });

@@ -101,7 +101,7 @@ export class JwtAuthGuard implements CanActivate {
       where: { id: payload.sub },
       select: {
         name: true,
-        role: true,
+        roles: true,
         active: true,
         mustChangePassword: true,
         clinic: { select: { active: true, ...DELETION_FIELDS_SELECT } },
@@ -116,11 +116,11 @@ export class JwtAuthGuard implements CanActivate {
       tenantId: payload.tenantId,
     });
     return {
-      // O papel vem do banco: uma mudança vale sem esperar o token expirar
+      // Os papéis vêm do banco: uma mudança vale sem esperar o token expirar
       user: {
         userId: payload.sub,
         tenantId: payload.tenantId,
-        role: user.role,
+        roles: user.roles,
       },
       mustChangePassword: user.mustChangePassword,
       readOnly: deletionStatus(user.clinic) === 'SCHEDULED',

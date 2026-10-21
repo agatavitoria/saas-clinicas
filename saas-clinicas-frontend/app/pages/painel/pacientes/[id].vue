@@ -108,8 +108,6 @@ async function toggleStatus() {
   }
 }
 
-const roleLabel = (record: { professional: { role: keyof typeof ROLE_LABELS } }) =>
-  ROLE_LABELS[record.professional.role]
 </script>
 
 <template>
@@ -217,7 +215,7 @@ const roleLabel = (record: { professional: { role: keyof typeof ROLE_LABELS } })
                   <div class="d-flex flex-wrap align-center justify-space-between ga-2 mb-1">
                     <div>
                       <strong>{{ formatDateTime(record.occurredAt) }}</strong>
-                      <span class="text-medium-emphasis"> · {{ record.professional.name }} ({{ roleLabel(record) }})</span>
+                      <span class="text-medium-emphasis"> · {{ record.professional.name }}</span>
                     </div>
                     <v-btn
                       v-if="canAmend(record)"

@@ -49,7 +49,7 @@ export interface PatientPage {
 export interface RecordAuthor {
   id: string;
   name: string;
-  role: UserRole;
+  roles: UserRole[];
 }
 
 export interface PatientRecordEntry {
@@ -70,5 +70,5 @@ export const RECORD_SELECT = {
   occurredAt: true,
   notes: true,
   createdAt: true,
-  professional: { select: { id: true, name: true, role: true } },
+  professional: { select: { id: true, name: true, roles: true } },
 } as const;

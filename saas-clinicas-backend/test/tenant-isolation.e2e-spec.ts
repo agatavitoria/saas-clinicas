@@ -31,7 +31,7 @@ describe('Tenant isolation (e2e)', () => {
         name: 'Recepção Beta',
         email: 'recepcao@beta.com',
         passwordHash: 'irrelevant',
-        role: 'RECEPTION',
+        roles: ['RECEPTION'],
       },
     });
   });
@@ -128,7 +128,7 @@ describe('Tenant isolation (e2e)', () => {
           name: 'Intruso',
           email: 'intruso@alfa.com',
           passwordHash: 'irrelevant',
-          role: 'PROFESSIONAL',
+          roles: ['PROFESSIONAL'],
         },
       });
 

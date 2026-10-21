@@ -99,7 +99,7 @@ export async function createUser(
   tenantId: string,
   data: {
     email: string;
-    role: 'ADMIN' | 'PROFESSIONAL' | 'RECEPTION';
+    roles: ('ADMIN' | 'PROFESSIONAL' | 'RECEPTION')[];
     name?: string;
   },
 ) {
@@ -108,7 +108,7 @@ export async function createUser(
       tenantId,
       name: data.name ?? data.email,
       email: data.email,
-      role: data.role,
+      roles: data.roles,
       passwordHash: await argon2.hash(PASSWORD),
     },
   });

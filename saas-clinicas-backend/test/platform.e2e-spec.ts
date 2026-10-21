@@ -163,7 +163,7 @@ describe('Platform admin (e2e)', () => {
       expect(response.body.admin).toMatchObject({
         tenantId: response.body.clinic.id,
         email: 'admin@sorriso.com',
-        role: 'ADMIN',
+        roles: ['ADMIN'],
         mustChangePassword: true,
       });
       expect(response.body.admin).not.toHaveProperty('passwordHash');
@@ -266,12 +266,12 @@ describe('Platform admin (e2e)', () => {
         .post(base, {
           name: 'Dra. Carla',
           email: 'carla@alfa.com',
-          role: 'PROFESSIONAL',
+          roles: ['PROFESSIONAL'],
           temporaryPassword: 'provisoria-1',
         })
         .expect(201);
       expect(created.body).toMatchObject({
-        role: 'PROFESSIONAL',
+        roles: ['PROFESSIONAL'],
         active: true,
         mustChangePassword: true,
       });

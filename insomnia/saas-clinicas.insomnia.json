@@ -286,7 +286,7 @@
       "name": "Criar usuário",
       "method": "POST",
       "url": "{{ _.baseUrl }}/users",
-      "description": "Papéis: ADMIN, PROFESSIONAL, RECEPTION. O usuário troca a senha no primeiro acesso.",
+      "description": "Papéis (pode ter vários): ADMIN, PROFESSIONAL, RECEPTION. Ex.: [\"ADMIN\", \"PROFESSIONAL\"]. O usuário troca a senha no primeiro acesso.",
       "headers": [
         {
           "name": "Content-Type",
@@ -303,7 +303,7 @@
       "settingFollowRedirects": "global",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"name\": \"Rafa Recepção\",\n  \"email\": \"rafa@clinica.com\",\n  \"role\": \"RECEPTION\",\n  \"temporaryPassword\": \"provisoria-123\"\n}"
+        "text": "{\n  \"name\": \"Rafa Recepção\",\n  \"email\": \"rafa@clinica.com\",\n  \"temporaryPassword\": \"provisoria-123\",\n  \"roles\": [\n    \"RECEPTION\"\n  ]\n}"
       }
     },
     {
@@ -358,6 +358,33 @@
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"active\": true\n}"
+      }
+    },
+    {
+      "_id": "req_saas_046",
+      "_type": "request",
+      "parentId": "fld_clinic_team",
+      "name": "Editar papéis",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/users/{{ _.userId }}/roles",
+      "description": "Define todos os papéis do usuário (pelo menos um). Não é possível tirar o próprio papel de admin nem deixar a clínica sem admin ativo.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -1601,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"roles\": [\n    \"PROFESSIONAL\",\n    \"RECEPTION\"\n  ]\n}"
       }
     },
     {
@@ -895,7 +922,7 @@
       "name": "Criar usuário",
       "method": "POST",
       "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/users",
-      "description": "",
+      "description": "Papéis (pode ter vários): ADMIN, PROFESSIONAL, RECEPTION. Ex.: [\"ADMIN\", \"PROFESSIONAL\"]. O usuário troca a senha no primeiro acesso.",
       "headers": [
         {
           "name": "Content-Type",
@@ -912,7 +939,7 @@
       "settingFollowRedirects": "global",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"name\": \"Dra. Carla\",\n  \"email\": \"carla@clinica.com\",\n  \"role\": \"PROFESSIONAL\",\n  \"temporaryPassword\": \"provisoria-123\"\n}"
+        "text": "{\n  \"name\": \"Dra. Carla\",\n  \"email\": \"carla@clinica.com\",\n  \"temporaryPassword\": \"provisoria-123\",\n  \"roles\": [\n    \"PROFESSIONAL\"\n  ]\n}"
       }
     },
     {
@@ -967,6 +994,33 @@
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"active\": true\n}"
+      }
+    },
+    {
+      "_id": "req_saas_047",
+      "_type": "request",
+      "parentId": "fld_master_users",
+      "name": "Editar papéis",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/platform/clinics/{{ _.clinicId }}/users/{{ _.userId }}/roles",
+      "description": "Define todos os papéis do usuário (pelo menos um). Não é possível tirar o próprio papel de admin nem deixar a clínica sem admin ativo.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -4601,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"roles\": [\n    \"PROFESSIONAL\",\n    \"RECEPTION\"\n  ]\n}"
       }
     },
     {

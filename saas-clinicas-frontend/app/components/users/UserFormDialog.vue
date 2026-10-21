@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { VForm } from 'vuetify/components'
-import type { CreateUserPayload, TeamMember, UserRole } from '~/types/auth'
+import type { CreateUserPayload, TeamMember } from '~/types/auth'
 
 const open = defineModel<boolean>({ required: true })
 
@@ -13,15 +13,10 @@ const emit = defineEmits<{ created: [user: TeamMember, temporaryPassword: string
 
 const api = useApi()
 
-const ROLE_OPTIONS = (Object.keys(ROLE_LABELS) as UserRole[]).map(value => ({
-  value,
-  title: ROLE_LABELS[value],
-}))
-
 const empty = (): CreateUserPayload => ({
   name: '',
   email: '',
-  role: 'PROFESSIONAL',
+  roles: ['PROFESSIONAL'],
   temporaryPassword: generateTemporaryPassword(),
 })
 
@@ -90,8 +85,14 @@ async function submit() {
             @update:model-value="emailError = undefined"
           />
           <v-select
-            v-model="values.role"
-            label="Papel"
+            v-model="values.roles"
+            label="Papéis"
+            multiple
+            chips
+            closable-chips
+            hint="Uma pessoa pode ter mais de um papel (ex.: administrador e profissional)"
+            persistent-hint
+            :rules="[(value: unknown) => (Array.isArray(value) && value.length > 0) || 'Escolha pelo menos um papel']"
             prepend-inner-icon="mdi-badge-account-outline"
             variant="outlined"
             density="comfortable"

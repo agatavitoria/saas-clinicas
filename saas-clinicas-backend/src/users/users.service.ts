@@ -45,7 +45,7 @@ export class UsersService {
             tenantId,
             name: dto.name,
             email: dto.email,
-            role: dto.role,
+            roles: dto.roles,
             passwordHash,
             mustChangePassword: true,
           },
@@ -53,7 +53,7 @@ export class UsersService {
         });
         await this.audit.log(tx, 'user.created', {
           target: userTarget(user),
-          metadata: { role: user.role },
+          metadata: { roles: user.roles },
         });
         return user;
       });
@@ -93,16 +93,8 @@ export class UsersService {
           'You cannot deactivate yourself',
         );
       }
-      if (user.role === UserRole.ADMIN) {
-        const activeAdmins = await db.user.count({
-          where: { role: UserRole.ADMIN, active: true },
-        });
-        if (activeAdmins <= 1) {
-          throw conflict(
-            'LAST_ACTIVE_ADMIN',
-            'The clinic must keep at least one active admin',
-          );
-        }
+      if (user.roles.includes(UserRole.ADMIN)) {
+        await this.ensureAnotherActiveAdmin(tenantId);
       }
     }
 
@@ -126,6 +118,53 @@ export class UsersService {
           metadata: { active: { from: !active, to: active } },
         },
       );
+      return updated;
+    });
+  }
+
+  /**
+   * Define os papéis do usuário (pelo menos um). Ninguém tira o próprio papel
+   * de admin, e a clínica nunca fica sem um admin ativo.
+   */
+  async setRoles(
+    tenantId: string,
+    userId: string,
+    roles: UserRole[],
+    actorUserId?: string,
+  ): Promise<TeamMember> {
+    const db = this.prisma.forTenant(tenantId);
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: TEAM_MEMBER_SELECT,
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const next = [...new Set(roles)].sort();
+    const current = [...user.roles].sort();
+    if (next.join() === current.join()) return user;
+
+    const losesAdmin =
+      current.includes(UserRole.ADMIN) && !next.includes(UserRole.ADMIN);
+    if (losesAdmin) {
+      if (userId === actorUserId) {
+        throw conflict(
+          'CANNOT_REMOVE_OWN_ADMIN',
+          'You cannot remove your own admin role',
+        );
+      }
+      if (user.active) await this.ensureAnotherActiveAdmin(tenantId);
+    }
+
+    return this.prisma.tenantTransaction(tenantId, async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: userId },
+        data: { roles: next },
+        select: TEAM_MEMBER_SELECT,
+      });
+      await this.audit.log(tx, 'user.roles_changed', {
+        target: userTarget(updated),
+        metadata: { roles: { from: current, to: next } },
+      });
       return updated;
     });
   }
@@ -157,5 +196,18 @@ export class UsersService {
       });
       return updated;
     });
+  }
+
+  /** Falha se o usuário em questão for o único admin ativo da clínica. */
+  private async ensureAnotherActiveAdmin(tenantId: string): Promise<void> {
+    const activeAdmins = await this.prisma.forTenant(tenantId).user.count({
+      where: { roles: { has: UserRole.ADMIN }, active: true },
+    });
+    if (activeAdmins <= 1) {
+      throw conflict(
+        'LAST_ACTIVE_ADMIN',
+        'The clinic must keep at least one active admin',
+      );
+    }
   }
 }

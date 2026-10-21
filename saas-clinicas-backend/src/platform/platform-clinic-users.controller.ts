@@ -14,6 +14,7 @@ import { ClinicsService } from '../clinics/clinics.service.js';
 import { CreateUserDto } from '../users/dto/create-user.dto.js';
 import { ResetPasswordDto } from '../users/dto/reset-password.dto.js';
 import { SetActiveDto } from '../users/dto/set-active.dto.js';
+import { SetRolesDto } from '../users/dto/set-roles.dto.js';
 import type { TeamMember } from '../users/team-member.js';
 import { UsersService } from '../users/users.service.js';
 
@@ -53,6 +54,15 @@ export class PlatformClinicUsersController {
     @Body() dto: SetActiveDto,
   ): Promise<TeamMember> {
     return this.usersService.setActive(clinicId, userId, dto.active);
+  }
+
+  @Patch(':userId/roles')
+  setRoles(
+    @Param('clinicId', ParseUUIDPipe) clinicId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: SetRolesDto,
+  ): Promise<TeamMember> {
+    return this.usersService.setRoles(clinicId, userId, dto.roles);
   }
 
   @Post(':userId/reset-password')

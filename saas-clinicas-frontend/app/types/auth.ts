@@ -5,7 +5,8 @@ export interface UserProfile {
   tenantId: string
   name: string
   email: string
-  role: UserRole
+  /** Pode ter vários (ex.: admin e profissional). */
+  roles: UserRole[]
   /** Senha provisória: precisa trocar antes de usar o sistema. */
   mustChangePassword: boolean
 }
@@ -14,7 +15,8 @@ export interface TeamMember {
   id: string
   name: string
   email: string
-  role: UserRole
+  /** Pode ter vários (ex.: admin e profissional). */
+  roles: UserRole[]
   active: boolean
   mustChangePassword: boolean
   createdAt: string
@@ -23,7 +25,8 @@ export interface TeamMember {
 export interface CreateUserPayload {
   name: string
   email: string
-  role: UserRole
+  /** Pode ter vários (ex.: admin e profissional). */
+  roles: UserRole[]
   temporaryPassword: string
 }
 

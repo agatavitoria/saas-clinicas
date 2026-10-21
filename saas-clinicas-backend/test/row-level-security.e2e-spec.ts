@@ -62,8 +62,8 @@ describe('Row-Level Security (e2e)', () => {
         alfa.clinicId,
         (tx) =>
           tx.$executeRaw`
-          INSERT INTO users (id, "tenantId", name, email, "passwordHash", role, "updatedAt")
-          VALUES (gen_random_uuid(), ${beta.clinicId}::uuid, 'Intruso', 'intruso@beta.com', 'x', 'ADMIN', now())
+          INSERT INTO users (id, "tenantId", name, email, "passwordHash", roles, "updatedAt")
+          VALUES (gen_random_uuid(), ${beta.clinicId}::uuid, 'Intruso', 'intruso@beta.com', 'x', '{ADMIN}', now())
         `,
       ),
     ).rejects.toThrow(/row-level security/);

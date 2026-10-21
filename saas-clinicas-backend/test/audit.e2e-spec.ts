@@ -62,7 +62,7 @@ describe('Audit log (e2e)', () => {
     it('records who did what to whom, with the request context', async () => {
       const pro = await createUser(prisma, alfa.clinicId, {
         email: 'pro@alfa.com',
-        role: 'PROFESSIONAL',
+        roles: ['PROFESSIONAL'],
         name: 'Paula Pro',
       });
 
@@ -101,7 +101,7 @@ describe('Audit log (e2e)', () => {
     it("attributes the master's actions to the affected clinic", async () => {
       const pro = await createUser(prisma, alfa.clinicId, {
         email: 'pro@alfa.com',
-        role: 'PROFESSIONAL',
+        roles: ['PROFESSIONAL'],
       });
 
       await http(app)
@@ -173,7 +173,7 @@ describe('Audit log (e2e)', () => {
     it('hides the log from non-admin users', async () => {
       await createUser(prisma, alfa.clinicId, {
         email: 'rec@alfa.com',
-        role: 'RECEPTION',
+        roles: ['RECEPTION'],
       });
       const reception = asCookieHeader(await login(app, 'rec@alfa.com'));
 
@@ -221,7 +221,7 @@ describe('Audit log (e2e)', () => {
     it('paginates with a cursor without repeating or skipping', async () => {
       const pro = await createUser(prisma, alfa.clinicId, {
         email: 'pro@alfa.com',
-        role: 'PROFESSIONAL',
+        roles: ['PROFESSIONAL'],
       });
       const admin = asCookieHeader(alfa.cookies);
       for (let i = 0; i < 3; i++) {

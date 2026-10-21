@@ -52,7 +52,7 @@ describe('ClinicsService', () => {
       tenantId: 'clinic-1',
       name: 'Ana Souza',
       email: 'ana@sorriso.com',
-      role: 'ADMIN',
+      roles: ['ADMIN'],
     };
     create.mockResolvedValue({
       id: 'clinic-1',
@@ -68,7 +68,7 @@ describe('ClinicsService', () => {
     expect(data.users.create).toMatchObject({
       name: 'Ana Souza',
       email: 'ana@sorriso.com',
-      role: 'ADMIN',
+      roles: ['ADMIN'],
       mustChangePassword: true,
     });
     expect(result).toEqual({
@@ -85,7 +85,7 @@ describe('ClinicsService', () => {
     create.mockResolvedValue({
       id: 'clinic-1',
       name: 'Clínica Sorriso',
-      users: [{ id: 'user-1', name: 'Ana Souza', role: 'ADMIN' }],
+      users: [{ id: 'user-1', name: 'Ana Souza', roles: ['ADMIN'] }],
     });
 
     await service.create(dto);
@@ -99,7 +99,7 @@ describe('ClinicsService', () => {
       'user.created',
       expect.objectContaining({
         tenantId: 'clinic-1',
-        metadata: { role: 'ADMIN' },
+        metadata: { roles: ['ADMIN'] },
       }),
     );
   });

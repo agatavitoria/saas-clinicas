@@ -1,4 +1,8 @@
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
   IsEmail,
   IsEnum,
   IsString,
@@ -7,6 +11,19 @@ import {
 } from 'class-validator';
 import { NormalizeEmail, Trim } from '../../common/validation/decorators.js';
 import { UserRole } from '../../generated/prisma/enums.js';
+
+/** Lista de papéis: pelo menos um, sem repetição. */
+export function RolesField(): PropertyDecorator {
+  const decorators = [
+    IsArray(),
+    ArrayNotEmpty(),
+    ArrayUnique(),
+    ArrayMaxSize(Object.keys(UserRole).length),
+    IsEnum(UserRole, { each: true }),
+  ];
+  return (target, key) =>
+    decorators.forEach((decorate) => decorate(target, key));
+}
 
 export class CreateUserDto {
   @Trim()
@@ -20,8 +37,9 @@ export class CreateUserDto {
   @MaxLength(254)
   email: string;
 
-  @IsEnum(UserRole)
-  role: UserRole;
+  /** Ex.: ['ADMIN', 'PROFESSIONAL'] para quem administra e também atende. */
+  @RolesField()
+  roles: UserRole[];
 
   /** Repassada à pessoa; precisa ser trocada no primeiro login. */
   @IsString()

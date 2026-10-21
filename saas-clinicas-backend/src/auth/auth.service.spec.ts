@@ -12,7 +12,7 @@ const profile = {
   tenantId: 'clinic-1',
   name: 'Ana Souza',
   email: 'ana@sorriso.com',
-  role: 'ADMIN' as const,
+  roles: ['ADMIN' as const],
   mustChangePassword: false,
 };
 
@@ -87,7 +87,7 @@ describe('AuthService', () => {
       expect(session.user).toEqual(profile);
       expect(session.accessToken).toBe('signed-jwt');
       expect(jwt.signAsync).toHaveBeenCalledWith(
-        { sub: 'user-1', tenantId: 'clinic-1', role: 'ADMIN' },
+        { sub: 'user-1', tenantId: 'clinic-1' },
         { audience: 'tenant' },
       );
       expect(prisma.forTenant).toHaveBeenCalledWith('clinic-1');
@@ -149,7 +149,7 @@ describe('AuthService', () => {
     const auth = {
       userId: 'user-1',
       tenantId: 'clinic-1',
-      role: 'ADMIN' as const,
+      roles: ['ADMIN' as const],
     };
 
     beforeEach(() => {

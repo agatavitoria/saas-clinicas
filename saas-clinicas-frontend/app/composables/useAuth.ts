@@ -1,4 +1,4 @@
-import type { UserProfile } from '~/types/auth'
+import type { UserProfile, UserRole } from '~/types/auth'
 
 /** Sessão do usuário de clínica. */
 export function useAuth() {
@@ -17,6 +17,19 @@ export function useAuth() {
     }
     loaded.value = true
     return user.value
+  }
+
+  /**
+   * Recarrega o perfil (ex.: papéis alterados). Só encerra a sessão local se
+   * ela realmente acabou (401); falha de rede mantém o usuário como estava.
+   */
+  async function refreshUser(): Promise<void> {
+    try {
+      setUser(await api<UserProfile>('/auth/me'))
+    }
+    catch (error) {
+      if (statusOf(error) === 401) setUser(null)
+    }
   }
 
   async function ensureLoaded(): Promise<UserProfile | null> {
@@ -57,15 +70,15 @@ export function useAuth() {
     loaded.value = true
   }
 
-  const isAdmin = computed(() => user.value?.role === 'ADMIN')
-  /** Recepção e admin cadastram, editam e inativam pacientes. */
-  const canManagePatients = computed(() =>
-    user.value?.role === 'RECEPTION' || user.value?.role === 'ADMIN',
-  )
-  /** Profissional e admin registram atendimentos. */
-  const canWriteRecords = computed(() =>
-    user.value?.role === 'PROFESSIONAL' || user.value?.role === 'ADMIN',
-  )
+  /** Tem pelo menos um dos papéis (um usuário pode ter vários). */
+  const hasRole = (...roles: UserRole[]) =>
+    roles.some(role => user.value?.roles.includes(role) ?? false)
 
-  return { user, isAdmin, canManagePatients, canWriteRecords, login, logout, changePassword, ensureLoaded }
+  const isAdmin = computed(() => hasRole('ADMIN'))
+  /** Recepção e admin cadastram, editam e inativam pacientes. */
+  const canManagePatients = computed(() => hasRole('RECEPTION', 'ADMIN'))
+  /** Profissional e admin registram atendimentos. */
+  const canWriteRecords = computed(() => hasRole('PROFESSIONAL', 'ADMIN'))
+
+  return { user, hasRole, isAdmin, canManagePatients, canWriteRecords, login, logout, changePassword, ensureLoaded, refreshUser }
 }
