@@ -17,6 +17,10 @@ const MESSAGES: Record<string, string> = {
     'A exclusão da clínica está agendada: o sistema está somente para consulta até ela ser cancelada.',
   INVALID_DELETION_STATE: 'Esta ação não é possível na situação atual da exclusão. Atualize a página.',
   CONFIRMATION_MISMATCH: 'O nome digitado não confere com o nome da clínica.',
+  CPF_IN_USE: 'Já existe um paciente com este CPF nesta clínica.',
+  PATIENT_INACTIVE: 'Este paciente está inativo. Reative o cadastro para registrar atendimentos.',
+  INVALID_AMENDMENT: 'Adicione o adendo ao registro original, não a outro adendo.',
+  NOT_RECORD_AUTHOR: 'Só quem fez o registro (ou um administrador) pode adicionar um adendo.',
 }
 
 /** Mensagem em português para exibir ao usuário. */

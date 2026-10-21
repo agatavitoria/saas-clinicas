@@ -26,6 +26,16 @@ export const formRules = {
   taxId: (value: unknown) =>
     !asText(value) || isValidTaxId(asText(value)) || 'CPF ou CNPJ inválido',
 
+  cpf: (value: unknown) => isValidCpf(asText(value)) || 'CPF inválido',
+
+  /** Data YYYY-MM-DD (campo type="date"), não futura. */
+  pastDate: (value: unknown) => {
+    const text = asText(value)
+    if (!text) return true
+    const date = new Date(`${text}T00:00:00`)
+    return (!Number.isNaN(date.getTime()) && date <= new Date()) || 'Informe uma data válida, que não seja futura'
+  },
+
   time: (value: unknown) => TIME_PATTERN.test(asText(value)) || 'Horário inválido',
 
   sameAs:

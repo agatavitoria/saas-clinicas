@@ -6,6 +6,17 @@ import type { ListAuditLogsDto } from './dto/list-audit-logs.dto.js';
 
 const DEFAULT_LIMIT = 50;
 
+/** Rótulo exibido ao master no lugar do nome de um paciente. */
+export const REDACTED_PATIENT_LABEL = 'Paciente';
+
+export interface ListOptions {
+  /**
+   * Visão do master: esconde o nome dos pacientes. Dados de saúde (inclusive
+   * quem é paciente de qual clínica) ficam só com a clínica.
+   */
+  redactPatients?: boolean;
+}
+
 export interface AuditLogEntry {
   id: string;
   occurredAt: Date;
@@ -35,15 +46,19 @@ export class AuditLogsService {
   async listForTenant(
     tenantId: string,
     query: ListAuditLogsDto,
+    options: ListOptions = {},
   ): Promise<AuditLogPage> {
     const limit = query.limit ?? DEFAULT_LIMIT;
     const rows = await this.prisma
       .forTenant(tenantId)
       .auditLog.findMany(this.findArgs(query, limit));
-    return this.page(rows, limit);
+    return this.page(rows, limit, options);
   }
 
-  /** Histórico de toda a plataforma (master), com filtro opcional por clínica. */
+  /**
+   * Histórico de toda a plataforma (master), com filtro opcional por clínica.
+   * Os nomes de pacientes nunca aparecem aqui.
+   */
   async listAll(
     query: ListAuditLogsDto & { tenantId?: string },
   ): Promise<AuditLogPage> {
@@ -53,7 +68,7 @@ export class AuditLogsService {
       args.where = { AND: [args.where ?? {}, { tenantId: query.tenantId }] };
     }
     const rows = await this.prisma.auditLog.findMany(args);
-    const page = this.page(rows, limit);
+    const page = this.page(rows, limit, { redactPatients: true });
 
     // Nome das clínicas da página numa única consulta
     const tenantIds = [
@@ -100,9 +115,16 @@ export class AuditLogsService {
     };
   }
 
-  private page(rows: AuditLogRow[], limit: number): AuditLogPage {
+  private page(
+    rows: AuditLogRow[],
+    limit: number,
+    { redactPatients = false }: ListOptions = {},
+  ): AuditLogPage {
     const hasMore = rows.length > limit;
-    const items = rows.slice(0, limit).map(toEntry);
+    const items = rows
+      .slice(0, limit)
+      .map(toEntry)
+      .map((entry) => (redactPatients ? redactPatient(entry) : entry));
     const last = items.at(-1);
     return {
       items,
@@ -124,6 +146,14 @@ function toEntry(row: AuditLogRow): AuditLogEntry {
       : null,
     metadata: row.metadata,
     ip: row.ip,
+  };
+}
+
+function redactPatient(entry: AuditLogEntry): AuditLogEntry {
+  if (entry.target?.type !== 'Patient') return entry;
+  return {
+    ...entry,
+    target: { ...entry.target, label: REDACTED_PATIENT_LABEL },
   };
 }
 

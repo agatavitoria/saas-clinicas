@@ -22,6 +22,7 @@ watch(user, (current) => {
 
 const navItems = computed(() => [
   { title: 'Painel', icon: 'mdi-view-dashboard-outline', to: '/painel' },
+  { title: 'Pacientes', icon: 'mdi-account-heart-outline', to: '/painel/pacientes' },
   ...(isAdmin.value
     ? [
         { title: 'Equipe', icon: 'mdi-account-group-outline', to: '/painel/equipe' },
@@ -30,13 +31,14 @@ const navItems = computed(() => [
       ]
     : []),
   { title: 'Agenda', icon: 'mdi-calendar-month-outline', soon: true },
-  { title: 'Pacientes', icon: 'mdi-account-heart-outline', soon: true },
+
   { title: 'Profissionais', icon: 'mdi-stethoscope', soon: true },
 ])
 
 const route = useRoute()
 const pageTitle = computed(() =>
-  navItems.value.find(item => item.to === route.path)?.title ?? 'Painel',
+  navItems.value.find(item => item.to === route.path)?.title
+  ?? (route.path.startsWith('/painel/pacientes') ? 'Pacientes' : 'Painel'),
 )
 
 async function onLogout() {
@@ -67,7 +69,7 @@ async function onLogout() {
           :title="item.title"
           :disabled="item.soon"
           rounded="pill"
-          exact
+          :exact="item.to === '/painel'"
         >
           <template v-if="item.soon" #append>
             <v-chip size="x-small" variant="tonal">Em breve</v-chip>

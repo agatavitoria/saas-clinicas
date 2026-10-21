@@ -23,6 +23,8 @@ Edite em **Manage Environments**:
 | `clinicId`       | id da clínica usado nas rotas do master              |
 | `clinicName`     | nome exato da clínica (pedido de exclusão)           |
 | `userId`         | id do usuário nas rotas de equipe                    |
+| `patientId`      | id do paciente                                       |
+| `recordId`       | id do atendimento (para adicionar adendo)            |
 
 ## Sessão (cookies)
 
@@ -47,7 +49,11 @@ pasta certa antes das demais chamadas.
 4. **Clínica → Autenticação → Trocar senha**. Depois, atualize
    `clinicPassword` no ambiente com o valor de `newPassword`.
 5. **Clínica → Equipe → Criar usuário**, e copie o `id` para `userId`.
-6. **Clínica → Auditoria → Histórico da clínica** para ver tudo o que foi
+6. **Clínica → Pacientes → Cadastrar paciente**, e copie o `id` para
+   `patientId`. Use um usuário `RECEPTION` ou `ADMIN`.
+7. **Clínica → Atendimentos → Registrar atendimento**, com um usuário
+   `PROFESSIONAL` ou `ADMIN`.
+8. **Clínica → Auditoria → Histórico da clínica** para ver tudo o que foi
    registrado.
 
 ## Manter atualizada

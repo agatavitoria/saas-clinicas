@@ -72,7 +72,7 @@ export class PlatformClinicsController {
     @Query() query: ListAuditLogsDto,
   ): Promise<AuditLogPage> {
     await this.clinicsService.findOne(id);
-    return this.auditLogs.listForTenant(id, query);
+    return this.auditLogs.listForTenant(id, query, { redactPatients: true });
   }
 
   @Get(':id/export')
@@ -80,7 +80,11 @@ export class PlatformClinicsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ClinicExport> {
-    return sendAsDownload(res, await this.privacy.exportClinic(id));
+    // O master não recebe dados de saúde: só a quantidade de pacientes
+    return sendAsDownload(
+      res,
+      await this.privacy.exportClinic(id, { includeHealthData: false }),
+    );
   }
 
   /** Confirma o pedido do admin: exclusão definitiva em 30 dias. */

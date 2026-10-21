@@ -22,6 +22,7 @@ const HEADERS = [
   { title: 'Clínica', key: 'name' },
   { title: 'Telefone', key: 'phone', width: 170 },
   { title: 'Usuários', key: 'usersCount', align: 'center' as const, width: 120 },
+  { title: 'Pacientes', key: 'patientsCount', align: 'center' as const, width: 120 },
   { title: 'Status', key: 'active', width: 220 },
   { title: 'Criada em', key: 'createdAt', width: 140 },
 ]

@@ -54,6 +54,8 @@ export interface ClinicSummary {
   phone: string
   active: boolean
   usersCount: number
+  /** Só a quantidade: o master não vê dados de pacientes. */
+  patientsCount: number
   deletion: DeletionInfo
   createdAt: string
 }

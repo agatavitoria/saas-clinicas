@@ -42,29 +42,26 @@ defineExpose({
       </v-col>
 
       <v-col cols="12" md="6">
-        <v-text-field
-          :model-value="clinic.phone"
+        <MaskedTextField
+          v-model="clinic.phone"
+          mask="phone"
           label="Telefone"
           type="tel"
-          inputmode="numeric"
           placeholder="(11) 99999-8888"
           prepend-inner-icon="mdi-phone-outline"
-          autocomplete="tel"
           :rules="[formRules.required(), formRules.phone]"
-          @update:model-value="value => (clinic.phone = formatPhone(value))"
         />
       </v-col>
 
       <v-col cols="12">
-        <v-text-field
-          :model-value="clinic.document"
+        <MaskedTextField
+          v-model="clinic.document"
+          mask="taxId"
           label="CNPJ ou CPF (opcional)"
-          inputmode="numeric"
           prepend-inner-icon="mdi-card-account-details-outline"
           hint="Usado em recibos e documentos emitidos pela clínica"
           persistent-hint
           :rules="[formRules.taxId]"
-          @update:model-value="value => (clinic.document = formatTaxId(value))"
         />
       </v-col>
     </v-row>

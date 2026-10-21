@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TeamMember } from '~/types/auth'
 import type { ClinicDetails } from '~/types/clinic'
+import type { PatientPage } from '~/types/patient'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Painel · SaaS Clínicas' })
@@ -9,11 +10,12 @@ const api = useApi()
 const { user, isAdmin } = useAuth()
 
 const { data, status, refresh } = await useAsyncData('dashboard', async () => {
-  const [clinic, team] = await Promise.all([
+  const [clinic, team, patients] = await Promise.all([
     api<ClinicDetails>('/clinics/me'),
     api<TeamMember[]>('/users'),
+    api<PatientPage>('/patients', { query: { pageSize: 1 } }),
   ])
-  return { clinic, team }
+  return { clinic, team, patientsCount: patients.total }
 })
 
 const activeTeam = computed(() => data.value?.team.filter(member => member.active) ?? [])
@@ -37,7 +39,6 @@ const week = computed(() =>
 
 const COMING_SOON = [
   { icon: 'mdi-calendar-month-outline', title: 'Agenda', text: 'Agendamentos por profissional, com confirmação e controle de faltas.' },
-  { icon: 'mdi-account-heart-outline', title: 'Pacientes', text: 'Cadastro de pacientes e histórico de atendimentos.' },
   { icon: 'mdi-stethoscope', title: 'Profissionais', text: 'Equipe de atendimento com horários e agenda própria.' },
 ]
 </script>
@@ -132,6 +133,21 @@ const COMING_SOON = [
                 </div>
               </v-list-item>
             </v-list>
+          </v-card>
+        </v-col>
+
+        <!-- Pacientes -->
+        <v-col cols="12">
+          <v-card elevation="1" to="/painel/pacientes" class="pa-2">
+            <v-card-item prepend-icon="mdi-account-heart-outline">
+              <v-card-title>
+                {{ data.patientsCount }} {{ data.patientsCount === 1 ? 'paciente ativo' : 'pacientes ativos' }}
+              </v-card-title>
+              <v-card-subtitle>Cadastro e prontuário dos pacientes da clínica</v-card-subtitle>
+              <template #append>
+                <v-icon icon="mdi-chevron-right" />
+              </template>
+            </v-card-item>
           </v-card>
         </v-col>
 

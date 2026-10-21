@@ -26,7 +26,9 @@
         "newPassword": "nova-senha-123",
         "clinicId": "cole-aqui-o-id-da-clinica",
         "clinicName": "Clínica Exemplo",
-        "userId": "cole-aqui-o-id-do-usuario"
+        "userId": "cole-aqui-o-id-do-usuario",
+        "patientId": "cole-aqui-o-id-do-paciente",
+        "recordId": "cole-aqui-o-id-do-atendimento"
       },
       "dataPropertyOrder": {
         "&": [
@@ -38,7 +40,9 @@
           "newPassword",
           "clinicId",
           "clinicName",
-          "userId"
+          "userId",
+          "patientId",
+          "recordId"
         ]
       },
       "color": null,
@@ -1040,6 +1044,270 @@
       "settingRebuildPath": true,
       "settingFollowRedirects": "global",
       "body": {}
+    },
+    {
+      "_id": "fld_clinic_patients",
+      "_type": "request_group",
+      "parentId": "fld_clinic",
+      "name": "Pacientes",
+      "description": "Consultar: todos os papéis. Cadastrar/editar/inativar: RECEPTION e ADMIN. Registrar atendimento e adendo: PROFESSIONAL e ADMIN.",
+      "environment": {},
+      "metaSortKey": -5000
+    },
+    {
+      "_id": "req_saas_037",
+      "_type": "request",
+      "parentId": "fld_clinic_patients",
+      "name": "Listar pacientes",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/patients",
+      "description": "Busca por nome, nome social ou CPF. status: active (padrão), inactive ou all.",
+      "headers": [],
+      "parameters": [
+        {
+          "name": "search",
+          "value": "maria",
+          "disabled": true
+        },
+        {
+          "name": "status",
+          "value": "active",
+          "disabled": true
+        },
+        {
+          "name": "page",
+          "value": "1",
+          "disabled": false
+        },
+        {
+          "name": "pageSize",
+          "value": "20",
+          "disabled": false
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -5100,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_038",
+      "_type": "request",
+      "parentId": "fld_clinic_patients",
+      "name": "Cadastrar paciente",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/patients",
+      "description": "Obrigatórios: name, cpf (válido, único na clínica) e birthDate (YYYY-MM-DD). gender: FEMALE, MALE, NON_BINARY, OTHER, UNDISCLOSED. Copie o id para patientId.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -5200,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Maria Paciente\",\n  \"cpf\": \"529.982.247-25\",\n  \"birthDate\": \"1990-05-20\",\n  \"socialName\": null,\n  \"gender\": \"FEMALE\",\n  \"phone\": \"(11) 98888-7777\",\n  \"email\": \"maria@email.com\",\n  \"emergencyContactName\": \"José Paciente\",\n  \"emergencyContactPhone\": \"(11) 97777-6666\"\n}"
+      }
+    },
+    {
+      "_id": "req_saas_039",
+      "_type": "request",
+      "parentId": "fld_clinic_patients",
+      "name": "Ficha do paciente",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/patients/{{ _.patientId }}",
+      "description": "Cada abertura da ficha é registrada na auditoria (patient.viewed).",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -5300,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_040",
+      "_type": "request",
+      "parentId": "fld_clinic_patients",
+      "name": "Editar paciente",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/patients/{{ _.patientId }}",
+      "description": "Envie só o que muda. null limpa campos opcionais; nome, CPF e nascimento não podem ser limpos.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -5400,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"phone\": \"(11) 96666-5555\",\n  \"socialName\": null\n}"
+      }
+    },
+    {
+      "_id": "req_saas_041",
+      "_type": "request",
+      "parentId": "fld_clinic_patients",
+      "name": "Inativar paciente",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/patients/{{ _.patientId }}/status",
+      "description": "O cadastro e o prontuário são mantidos.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -5500,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"active\": false\n}"
+      }
+    },
+    {
+      "_id": "req_saas_042",
+      "_type": "request",
+      "parentId": "fld_clinic_patients",
+      "name": "Reativar paciente",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/patients/{{ _.patientId }}/status",
+      "description": "",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -5600,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"active\": true\n}"
+      }
+    },
+    {
+      "_id": "fld_clinic_records",
+      "_type": "request_group",
+      "parentId": "fld_clinic",
+      "name": "Atendimentos (prontuário)",
+      "description": "Registros imutáveis: não há edição nem exclusão. Correções entram como adendo, feito pelo autor ou por um ADMIN.",
+      "environment": {},
+      "metaSortKey": -5700
+    },
+    {
+      "_id": "req_saas_043",
+      "_type": "request",
+      "parentId": "fld_clinic_records",
+      "name": "Listar atendimentos",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/patients/{{ _.patientId }}/records",
+      "description": "Do mais recente para o mais antigo, com os adendos.",
+      "headers": [],
+      "parameters": [
+        {
+          "name": "professionalId",
+          "value": "{{ _.userId }}",
+          "disabled": true
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -5800,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_044",
+      "_type": "request",
+      "parentId": "fld_clinic_records",
+      "name": "Registrar atendimento",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/patients/{{ _.patientId }}/records",
+      "description": "occurredAt é opcional (padrão: agora) e não pode ser futuro. Copie o id para recordId.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -5900,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"notes\": \"Primeira consulta. Queixa de dor lombar há duas semanas.\",\n  \"occurredAt\": \"2026-10-20T14:30:00.000Z\"\n}"
+      }
+    },
+    {
+      "_id": "req_saas_045",
+      "_type": "request",
+      "parentId": "fld_clinic_records",
+      "name": "Adicionar adendo",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/patients/{{ _.patientId }}/records/{{ _.recordId }}/amendments",
+      "description": "Só no registro original (não em outro adendo).",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -6000,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"notes\": \"Correção: a dor é cervical, não lombar.\"\n}"
+      }
     }
   ]
 }

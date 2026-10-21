@@ -25,6 +25,15 @@ export interface ClinicExport {
   clinic: ClinicDetails;
   users: TeamMember[];
   auditLogs: AuditLogEntry[];
+  /** Só na exportação feita pela própria clínica. */
+  patients?: unknown[];
+  /** Na exportação do master: dados de saúde ficam só com a clínica. */
+  patientsCount?: number;
+}
+
+export interface ExportOptions {
+  /** Pacientes e prontuário: só para a clínica (controladora dos dados). */
+  includeHealthData: boolean;
 }
 
 const CLEARED_DELETION = {
@@ -53,20 +62,42 @@ export class PrivacyService {
     private readonly auditLogs: AuditLogsService,
   ) {}
 
-  /** Todos os dados da clínica, sem hashes de senha nem tokens. */
-  async exportClinic(tenantId: string): Promise<ClinicExport> {
+  /**
+   * Todos os dados da clínica, sem hashes de senha nem tokens. Pacientes e
+   * prontuário só entram quando quem exporta é a própria clínica.
+   */
+  async exportClinic(
+    tenantId: string,
+    { includeHealthData }: ExportOptions,
+  ): Promise<ClinicExport> {
     const db = this.prisma.forTenant(tenantId);
     const clinic = await this.clinics.findOne(tenantId);
 
-    const [users, auditLogs] = await Promise.all([
+    const [users, auditLogs, health] = await Promise.all([
       db.user.findMany({
         select: TEAM_MEMBER_SELECT,
         orderBy: { name: 'asc' },
       }),
-      this.allAuditLogs(tenantId),
+      this.allAuditLogs(tenantId, !includeHealthData),
+      includeHealthData
+        ? db.patient
+            .findMany({
+              orderBy: { name: 'asc' },
+              include: {
+                records: {
+                  orderBy: { occurredAt: 'asc' },
+                  include: {
+                    professional: { select: { id: true, name: true } },
+                  },
+                },
+              },
+            })
+            .then((patients) => ({ patients }))
+        : db.patient.count().then((patientsCount) => ({ patientsCount })),
     ]);
     await this.audit.log(db, 'clinic.data_exported', {
       target: clinicTarget(clinic),
+      metadata: { includesHealthData: includeHealthData },
     });
 
     return {
@@ -75,6 +106,7 @@ export class PrivacyService {
       clinic,
       users,
       auditLogs,
+      ...health,
     };
   }
 
@@ -189,14 +221,18 @@ export class PrivacyService {
     return withDeletionInfo(clinic);
   }
 
-  private async allAuditLogs(tenantId: string): Promise<AuditLogEntry[]> {
+  private async allAuditLogs(
+    tenantId: string,
+    redactPatients: boolean,
+  ): Promise<AuditLogEntry[]> {
     const entries: AuditLogEntry[] = [];
     let cursor: string | undefined;
     do {
-      const page = await this.auditLogs.listForTenant(tenantId, {
-        cursor,
-        limit: 100,
-      });
+      const page = await this.auditLogs.listForTenant(
+        tenantId,
+        { cursor, limit: 100 },
+        { redactPatients },
+      );
       entries.push(...page.items);
       cursor = page.nextCursor ?? undefined;
     } while (cursor);

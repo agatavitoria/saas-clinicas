@@ -29,6 +29,13 @@ export const AUDIT_ACTIONS: Record<string, ActionInfo> = {
   'clinic.created': { label: 'Clínica criada', icon: 'mdi-domain-plus', color: 'success', sentence: 'criou a clínica {target}' },
   'clinic.deactivated': { label: 'Clínica desativada', icon: 'mdi-domain-off', color: 'error', sentence: 'desativou a clínica {target}' },
   'clinic.reactivated': { label: 'Clínica reativada', icon: 'mdi-domain', color: 'success', sentence: 'reativou a clínica {target}' },
+  'patient.created': { label: 'Paciente cadastrado', icon: 'mdi-account-heart-outline', color: 'success', sentence: 'cadastrou o paciente {target}' },
+  'patient.updated': { label: 'Paciente editado', icon: 'mdi-account-edit-outline', color: 'primary', sentence: 'editou o cadastro de {target}' },
+  'patient.viewed': { label: 'Ficha consultada', icon: 'mdi-eye-outline', color: 'secondary', sentence: 'abriu a ficha de {target}' },
+  'patient.deactivated': { label: 'Paciente inativado', icon: 'mdi-account-off-outline', color: 'error', sentence: 'inativou o paciente {target}' },
+  'patient.reactivated': { label: 'Paciente reativado', icon: 'mdi-account-check-outline', color: 'success', sentence: 'reativou o paciente {target}' },
+  'patient_record.created': { label: 'Atendimento registrado', icon: 'mdi-clipboard-text-outline', color: 'primary', sentence: 'registrou um atendimento de {target}' },
+  'patient_record.amended': { label: 'Adendo no prontuário', icon: 'mdi-clipboard-edit-outline', color: 'warning', sentence: 'adicionou um adendo ao prontuário de {target}' },
   'clinic.data_exported': { label: 'Dados exportados', icon: 'mdi-download', color: 'primary', sentence: 'exportou os dados da clínica {target}' },
   'clinic.deletion_requested': { label: 'Exclusão solicitada', icon: 'mdi-delete-clock-outline', color: 'warning', sentence: 'solicitou a exclusão da clínica {target}' },
   'clinic.deletion_cancelled': { label: 'Exclusão cancelada', icon: 'mdi-delete-restore', color: 'success', sentence: 'cancelou a exclusão da clínica {target}' },
@@ -77,9 +84,12 @@ export function auditSentence(entry: AuditLogEntry): SentencePart[] {
 
 /** Complemento a partir do metadata, quando houver. */
 function auditDetail(entry: AuditLogEntry): string | null {
-  const { role, scheduledFor } = entry.metadata
+  const { role, scheduledFor, fields } = entry.metadata
   if (entry.action === 'user.created' && typeof role === 'string' && role in ROLE_LABELS) {
     return `como ${ROLE_LABELS[role as keyof typeof ROLE_LABELS].toLowerCase()}`
+  }
+  if (entry.action === 'patient.updated' && Array.isArray(fields)) {
+    return `campos: ${fields.map(field => PATIENT_FIELD_LABELS[field as string] ?? field).join(', ')}`
   }
   if (entry.action === 'clinic.deletion_confirmed' && typeof scheduledFor === 'string') {
     return `exclusão definitiva em ${new Date(scheduledFor).toLocaleDateString('pt-BR')}`

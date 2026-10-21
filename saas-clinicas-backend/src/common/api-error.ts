@@ -20,7 +20,11 @@ export type ApiErrorCode =
   | 'INVALID_CURRENT_PASSWORD'
   | 'CLINIC_READ_ONLY'
   | 'INVALID_DELETION_STATE'
-  | 'CONFIRMATION_MISMATCH';
+  | 'CONFIRMATION_MISMATCH'
+  | 'CPF_IN_USE'
+  | 'PATIENT_INACTIVE'
+  | 'INVALID_AMENDMENT'
+  | 'NOT_RECORD_AUTHOR';
 
 type ExceptionClass = new (body: object) => HttpException;
 

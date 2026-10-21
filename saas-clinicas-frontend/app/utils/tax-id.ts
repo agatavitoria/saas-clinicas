@@ -8,7 +8,7 @@ function checkDigit(digits: string, weights: number[]): number {
   return rest < 2 ? 0 : 11 - rest
 }
 
-function isValidCpf(digits: string): boolean {
+function isValidCpfDigits(digits: string): boolean {
   if (digits.length !== 11 || allSameDigit(digits)) return false
   return (
     checkDigit(digits, [10, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(digits[9])
@@ -26,5 +26,9 @@ function isValidCnpj(digits: string): boolean {
 
 export function isValidTaxId(value: string): boolean {
   const digits = onlyDigits(value)
-  return isValidCpf(digits) || isValidCnpj(digits)
+  return isValidCpfDigits(digits) || isValidCnpj(digits)
+}
+
+export function isValidCpf(value: string): boolean {
+  return isValidCpfDigits(onlyDigits(value))
 }

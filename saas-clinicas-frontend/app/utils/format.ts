@@ -15,6 +15,15 @@ export function formatPhone(value: string): string {
   return tail ? `(${area}) ${head}-${tail}` : `(${area}) ${head}`
 }
 
+/** CPF 000.000.000-00 (no máximo 11 dígitos). */
+export function formatCpf(value: string): string {
+  return onlyDigits(value)
+    .slice(0, 11)
+    .replace(/^(\d{3})(\d)/, '$1.$2')
+    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2')
+}
+
 /** CPF 000.000.000-00 ou CNPJ 00.000.000/0000-00, conforme a quantidade de dígitos. */
 export function formatTaxId(value: string): string {
   const digits = onlyDigits(value).slice(0, 14)

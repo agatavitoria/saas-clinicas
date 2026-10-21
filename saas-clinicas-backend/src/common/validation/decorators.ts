@@ -4,7 +4,7 @@ import {
   ValidationArguments,
   ValidationOptions,
 } from 'class-validator';
-import { isValidTaxId } from './tax-id.js';
+import { isValidCpf, isValidTaxId } from './tax-id.js';
 
 /** Remove espaços nas pontas. */
 export const Trim = () =>
@@ -34,6 +34,60 @@ export function IsTaxId(options?: ValidationOptions) {
       validator: {
         validate: (value: unknown) =>
           typeof value === 'string' && isValidTaxId(value),
+      },
+    });
+  };
+}
+
+/** Texto opcional: espaços nas pontas removidos e vazio vira null (limpa o campo). */
+export const OptionalText = () =>
+  Transform(({ value }: { value: unknown }) => {
+    if (typeof value !== 'string') return value;
+    const trimmed = value.trim();
+    return trimmed === '' ? null : trimmed;
+  });
+
+export function IsCpf(options?: ValidationOptions) {
+  return (object: object, propertyName: string) => {
+    registerDecorator({
+      name: 'isCpf',
+      target: object.constructor,
+      propertyName,
+      options: { message: '$property must be a valid CPF', ...options },
+      validator: {
+        validate: (value: unknown) =>
+          typeof value === 'string' && isValidCpf(value),
+      },
+    });
+  };
+}
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const MIN_BIRTH_YEAR = 1900;
+
+/** Data de nascimento no formato YYYY-MM-DD, existente e não futura. */
+export function IsBirthDate(options?: ValidationOptions) {
+  return (object: object, propertyName: string) => {
+    registerDecorator({
+      name: 'isBirthDate',
+      target: object.constructor,
+      propertyName,
+      options: {
+        message: '$property must be a valid past date (YYYY-MM-DD)',
+        ...options,
+      },
+      validator: {
+        validate(value: unknown) {
+          if (typeof value !== 'string' || !DATE_ONLY.test(value)) return false;
+          const date = new Date(`${value}T00:00:00Z`);
+          return (
+            !Number.isNaN(date.getTime()) &&
+            // Rejeita datas que "transbordam", como 2024-02-31
+            date.toISOString().startsWith(value) &&
+            date.getUTCFullYear() >= MIN_BIRTH_YEAR &&
+            date.getTime() <= Date.now()
+          );
+        },
       },
     });
   };

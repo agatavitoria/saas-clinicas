@@ -25,6 +25,12 @@ agenda, e nunca enxerga dados de outra clínica.
   Inativar um usuário ou uma clínica derruba o acesso na hora.
 - **Painel da clínica:** dados de contato, status "aberta agora", horário da
   semana e equipe.
+- **Pacientes**, em `/painel/pacientes`:
+  - cadastro com busca por nome ou CPF. O CPF é único dentro da clínica, e o
+    mesmo CPF em outra clínica é um cadastro independente;
+  - ficha do paciente;
+  - **prontuário**: registros de atendimento imutáveis, com adendos para
+    correções.
 - **Auditoria:** histórico imutável de quem fez o quê e quando. O admin vê o
   da própria clínica, em `/painel/atividades`; o master vê o de toda a
   plataforma, em `/master/atividades`.
@@ -38,7 +44,6 @@ agenda, e nunca enxerga dados de outra clínica.
 
 **Planejado**
 
-- Pacientes
 - Profissionais com agenda própria
 - Agendamentos com status: agendado, confirmado, cancelado, realizado, faltou
 
@@ -91,8 +96,22 @@ sistema guarda dados de saúde.
 | Quem                    | Onde entra        | O que pode fazer                                            |
 | ----------------------- | ----------------- | ----------------------------------------------------------- |
 | Admin master            | `/master/login`   | todas as clínicas e os usuários delas                       |
-| Administrador (`ADMIN`) | `/login`          | painel e gestão da equipe da **própria** clínica            |
-| Profissional / Recepção | `/login`          | painel da própria clínica (vê a equipe, não a gerencia)     |
+| Administrador (`ADMIN`) | `/login`          | tudo na **própria** clínica: equipe, pacientes, prontuário, histórico e LGPD |
+| Recepção (`RECEPTION`)  | `/login`          | cadastra e edita pacientes; consulta o prontuário           |
+| Profissional (`PROFESSIONAL`) | `/login`    | consulta pacientes e registra atendimentos e adendos        |
+
+Permissões sobre pacientes:
+
+| Ação                                     | Recepção | Profissional | Admin |
+| ---------------------------------------- | :------: | :----------: | :---: |
+| Listar, buscar e abrir a ficha           | ✅       | ✅           | ✅    |
+| Cadastrar, editar e inativar paciente    | ✅       | ❌           | ✅    |
+| Ver os atendimentos                      | ✅       | ✅           | ✅    |
+| Registrar atendimento                    | ❌       | ✅           | ✅    |
+| Adicionar adendo                         | ❌       | só no próprio registro | ✅ |
+
+O admin master **não vê dados de pacientes**: só a quantidade por clínica. Na
+LGPD, a clínica é a controladora dos dados de saúde.
 
 O admin master não pertence a nenhuma clínica. Ele fica em uma tabela
 própria (`platform_admins`) e tem sessão separada, com cookies diferentes.
@@ -173,8 +192,8 @@ esquecido), o banco devolve zero linhas em vez de vazar dados.
   SELECT set_config('app.tenant_id', '<id da clínica>', true);
   ```
   As políticas de `clinics`, `clinic_business_hours`, `users`,
-  `refresh_tokens` e `audit_logs` só deixam passar linhas em que
-  `tenantId = app_current_tenant()`.
+  `refresh_tokens`, `audit_logs`, `patients` e `patient_records` só deixam
+  passar linhas em que `tenantId = app_current_tenant()`.
 - **Transações com várias operações:** use
   `prisma.tenantTransaction(tenantId, async (tx) => …)`. Ela faz o mesmo
   ajuste uma vez no início. Dentro do callback, use só o `tx` recebido.
@@ -202,6 +221,10 @@ erDiagram
     clinics ||--|{ users : "tem equipe"
     clinics ||--o{ refresh_tokens : "isola por tenant"
     users ||--o{ refresh_tokens : "tem sessões"
+    clinics ||--o{ patients : "atende"
+    patients ||--o{ patient_records : "tem prontuário"
+    users ||--o{ patient_records : "registra"
+    patient_records ||--o{ patient_records : "adendos"
     platform_admins ||--o{ platform_refresh_tokens : "tem sessões"
 
     clinics {
@@ -269,6 +292,32 @@ erDiagram
         datetime createdAt
     }
 
+    patients {
+        uuid id PK
+        uuid tenantId FK "CPF único junto com tenantId"
+        string name
+        string socialName
+        string cpf "somente dígitos"
+        date birthDate
+        enum gender
+        string phone
+        string email
+        string emergencyContactName
+        string emergencyContactPhone
+        boolean active "inativado, nunca apagado"
+    }
+
+    patient_records {
+        uuid id PK
+        uuid tenantId FK
+        uuid patientId FK
+        uuid professionalId FK "quem atendeu"
+        datetime occurredAt "data do atendimento"
+        string notes "texto clínico"
+        uuid amendsId FK "preenchido nos adendos"
+        datetime createdAt
+    }
+
     audit_logs {
         uuid id PK
         uuid tenantId "sem FK: sobrevive à exclusão"
@@ -300,6 +349,14 @@ Como ler o diagrama:
   também leva o `tenantId`, para ser filtrada pela clínica como as demais.
 - **`platform_admins`** e **`platform_refresh_tokens`** são do admin master. Não
   têm `tenantId`, porque não pertencem a nenhuma clínica.
+- **`patients`**: o par (`tenantId`, `cpf`) é único. O mesmo CPF pode existir
+  em outra clínica, sem nenhum vínculo entre os cadastros, e um usuário de uma
+  clínica pode ser paciente de outra. Pacientes são inativados, nunca
+  apagados.
+- **`patient_records`** é o prontuário. É **imutável**: não há edição nem
+  exclusão, e o papel `app_tenant` só tem `SELECT` e `INSERT` nessa tabela.
+  Correções e complementos são adendos, com `amendsId` apontando para o
+  registro original.
 - **`audit_logs`** só aceita inserção. Não tem chave estrangeira para a
   clínica, de propósito: quando uma clínica é excluída, os logs dela continuam,
   anonimizados, como prova do que aconteceu.
@@ -372,9 +429,16 @@ GitHub): **eventos explícitos com significado de negócio**.
 A clínica é a **controladora** dos dados, e a plataforma é a **operadora**. O
 sistema dá à clínica as ferramentas para atender os direitos dos titulares.
 
-- **Exportação (portabilidade):** o admin, em `/painel/clinica`, ou o master
-  baixam um JSON com a clínica, os horários, a equipe (sem hashes de senha) e
-  o histórico de atividades. Cada exportação é registrada no log.
+- **Exportação (portabilidade):** baixa um JSON com a clínica, os horários,
+  a equipe (sem hashes de senha) e o histórico de atividades. Cada exportação
+  é registrada no log.
+  - Feita pelo admin, em `/painel/clinica`, inclui também os pacientes e os
+    prontuários.
+  - Feita pelo master, traz só a **quantidade** de pacientes, e o nome deles
+    aparece como "Paciente" no histórico.
+- **Prontuário:** o texto clínico e o CPF nunca vão para o log de auditoria.
+  Toda abertura da ficha fica registrada (`patient.viewed`), e as edições
+  registram só os **nomes** dos campos alterados.
 - **Exclusão em duas etapas:**
 
   | Situação     | Como chega lá                         | O que acontece                                              |
@@ -566,7 +630,9 @@ Os e2e cobrem, entre outros cenários:
   nada;
 - o fluxo completo de exclusão, com logs anonimizados depois da exclusão
   definitiva;
-- o Row-Level Security, que barra o acesso a outra clínica mesmo com SQL cru.
+- o Row-Level Security, que barra o acesso a outra clínica mesmo com SQL cru;
+- pacientes: o mesmo CPF em clínicas diferentes, permissões por papel,
+  imutabilidade do prontuário e o master sem acesso aos dados de saúde.
 
 ## API
 
@@ -592,6 +658,14 @@ que o frontend traduz para uma mensagem em português.
 | POST   | `/api/users`                      | `ADMIN`      | cria usuário com senha provisória           |
 | PATCH  | `/api/users/:id/status`           | `ADMIN`      | `{ active }`: inativa ou reativa            |
 | POST   | `/api/users/:id/reset-password`   | `ADMIN`      | `{ temporaryPassword }`                     |
+| GET    | `/api/patients`                   | logado       | busca (`search`), `status` e paginação      |
+| POST   | `/api/patients`                   | `RECEPTION`, `ADMIN` | cadastra paciente                   |
+| GET    | `/api/patients/:id`               | logado       | ficha (registra `patient.viewed`)           |
+| PATCH  | `/api/patients/:id`               | `RECEPTION`, `ADMIN` | edição parcial                      |
+| PATCH  | `/api/patients/:id/status`        | `RECEPTION`, `ADMIN` | `{ active }`                        |
+| GET    | `/api/patients/:id/records`       | logado       | atendimentos com adendos (`professionalId`) |
+| POST   | `/api/patients/:id/records`       | `PROFESSIONAL`, `ADMIN` | `{ notes, occurredAt? }`         |
+| POST   | `/api/patients/:id/records/:recordId/amendments` | autor ou `ADMIN` | `{ notes }`             |
 | GET    | `/api/audit-logs`                 | `ADMIN`      | histórico da clínica (filtros e cursor)     |
 | GET    | `/api/clinics/me/export`          | `ADMIN`      | exportação dos dados (JSON)                 |
 | POST   | `/api/clinics/me/deletion-request` | `ADMIN`     | `{ confirmationName, reason? }`             |

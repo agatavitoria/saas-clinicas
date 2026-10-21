@@ -30,7 +30,12 @@ export class PrivacyController {
     @CurrentUser() user: AuthUser,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ClinicExport> {
-    return sendAsDownload(res, await this.privacy.exportClinic(user.tenantId));
+    return sendAsDownload(
+      res,
+      await this.privacy.exportClinic(user.tenantId, {
+        includeHealthData: true,
+      }),
+    );
   }
 
   @Post('deletion-request')

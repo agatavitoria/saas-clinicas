@@ -33,9 +33,11 @@ model Clinic {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  businessHours ClinicBusinessHour[]
-  users         User[]
-  refreshTokens RefreshToken[]
+  businessHours  ClinicBusinessHour[]
+  users          User[]
+  refreshTokens  RefreshToken[]
+  patients       Patient[]
+  patientRecords PatientRecord[]
 
   @@map("clinics")
 }
@@ -70,8 +72,9 @@ model User {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  clinic        Clinic         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  refreshTokens RefreshToken[]
+  clinic         Clinic          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  refreshTokens  RefreshToken[]
+  patientRecords PatientRecord[]
 
   @@index([tenantId])
   @@map("users")
@@ -157,4 +160,66 @@ model AuditLog {
   @@index([action])
   @@index([actorId])
   @@map("audit_logs")
+}
+
+enum Gender {
+  FEMALE
+  MALE
+  NON_BINARY
+  OTHER
+  UNDISCLOSED
+}
+
+/// Paciente de uma clínica. O CPF é único dentro da clínica; o mesmo CPF pode
+/// existir em outra, sem nenhum vínculo entre os cadastros.
+model Patient {
+  id                    String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @db.Uuid
+  name                  String
+  /// Nome social, exibido no atendimento quando informado
+  socialName            String?
+  /// Somente dígitos
+  cpf                   String
+  birthDate             DateTime @db.Date
+  gender                Gender?
+  phone                 String?
+  email                 String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  /// Inativado, nunca apagado: o prontuário precisa ser guardado
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  clinic  Clinic          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  records PatientRecord[]
+
+  @@unique([tenantId, cpf])
+  @@index([tenantId, name])
+  @@map("patients")
+}
+
+/// Registro de atendimento (prontuário). Imutável: correções e complementos
+/// entram como adendo (amendsId aponta para o registro original).
+model PatientRecord {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  patientId      String   @db.Uuid
+  /// Quem atendeu (profissional ou admin)
+  professionalId String   @db.Uuid
+  /// Data do atendimento
+  occurredAt     DateTime @default(now())
+  notes          String
+  amendsId       String?  @db.Uuid
+  createdAt      DateTime @default(now())
+
+  clinic       Clinic          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient      Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  professional User            @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  amends       PatientRecord?  @relation("RecordAmendments", fields: [amendsId], references: [id], onDelete: Cascade)
+  amendments   PatientRecord[] @relation("RecordAmendments")
+
+  @@index([tenantId, patientId, occurredAt(sort: Desc)])
+  @@index([amendsId])
+  @@map("patient_records")
 }

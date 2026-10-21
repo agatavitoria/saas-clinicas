@@ -20,7 +20,11 @@ As subpastas NÃO devem ter `.git` próprio.
 
 - **Clínica (tenant)**: nome, dados de contato, configurações de horário
 - **Usuário**: pertence a uma clínica; papéis: administrador, profissional, recepção
-- **Paciente**: pertence a uma clínica
+- **Paciente**: pertence a uma clínica; CPF único dentro da clínica (o mesmo
+  CPF pode existir em outra, sem vínculo). Inativado, nunca apagado.
+- **Atendimento (prontuário)**: registro imutável de um profissional sobre um
+  paciente; correções só como adendo (pelo autor ou admin). O texto clínico
+  nunca vai para a auditoria, e o master não vê dados de pacientes
 - **Profissional**: usuário que atende e tem agenda própria
 - **Agendamento**: paciente + profissional + data/hora + status
   (agendado, confirmado, cancelado, realizado, faltou)

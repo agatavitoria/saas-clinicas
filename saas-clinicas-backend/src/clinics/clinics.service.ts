@@ -132,7 +132,7 @@ export class ClinicsService {
         active: true,
         createdAt: true,
         ...DELETION_FIELDS_SELECT,
-        _count: { select: { users: true } },
+        _count: { select: { users: true, patients: true } },
       },
       orderBy: { name: 'asc' },
     });
@@ -140,6 +140,7 @@ export class ClinicsService {
     return clinics.map(({ _count, ...clinic }) => ({
       ...withDeletionInfo(clinic),
       usersCount: _count.users,
+      patientsCount: _count.patients,
     }));
   }
 

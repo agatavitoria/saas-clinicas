@@ -20,6 +20,14 @@ export const AUDIT_ACTIONS = [
   'clinic.created',
   'clinic.deactivated',
   'clinic.reactivated',
+  // Pacientes e prontuário
+  'patient.created',
+  'patient.updated',
+  'patient.viewed',
+  'patient.deactivated',
+  'patient.reactivated',
+  'patient_record.created',
+  'patient_record.amended',
   // LGPD
   'clinic.data_exported',
   'clinic.deletion_requested',

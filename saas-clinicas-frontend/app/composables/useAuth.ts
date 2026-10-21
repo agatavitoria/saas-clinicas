@@ -58,6 +58,14 @@ export function useAuth() {
   }
 
   const isAdmin = computed(() => user.value?.role === 'ADMIN')
+  /** Recepção e admin cadastram, editam e inativam pacientes. */
+  const canManagePatients = computed(() =>
+    user.value?.role === 'RECEPTION' || user.value?.role === 'ADMIN',
+  )
+  /** Profissional e admin registram atendimentos. */
+  const canWriteRecords = computed(() =>
+    user.value?.role === 'PROFESSIONAL' || user.value?.role === 'ADMIN',
+  )
 
-  return { user, isAdmin, login, logout, changePassword, ensureLoaded }
+  return { user, isAdmin, canManagePatients, canWriteRecords, login, logout, changePassword, ensureLoaded }
 }
