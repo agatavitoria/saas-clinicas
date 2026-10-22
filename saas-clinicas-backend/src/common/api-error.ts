@@ -25,7 +25,10 @@ export type ApiErrorCode =
   | 'PATIENT_INACTIVE'
   | 'INVALID_AMENDMENT'
   | 'NOT_RECORD_AUTHOR'
-  | 'CANNOT_REMOVE_OWN_ADMIN';
+  | 'CANNOT_REMOVE_OWN_ADMIN'
+  | 'LOW_COLOR_CONTRAST'
+  | 'INVALID_LOGO'
+  | 'LOGO_TOO_LARGE';
 
 type ExceptionClass = new (body: object) => HttpException;
 

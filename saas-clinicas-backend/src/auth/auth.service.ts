@@ -5,6 +5,8 @@ import * as argon2 from 'argon2';
 import { randomBytes } from 'node:crypto';
 import { type AuditActor, SYSTEM_ACTOR } from '../audit/audit-context.js';
 import { AuditService } from '../audit/audit.service.js';
+import { CLINIC_BRANDING_SELECT } from '../clinics/branding.js';
+import type { ClinicBrandingInfo } from '../clinics/dto/clinic-response.dto.js';
 import { badRequest, forbidden } from '../common/api-error.js';
 import type { EnvironmentVariables } from '../config/env.validation.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -20,6 +22,11 @@ import { RefreshTokenRotation } from './refresh-token-rotation.js';
 
 export interface Session extends SessionTokens {
   user: UserProfile;
+}
+
+/** Resposta do /auth/me: a cor e o logo vêm junto para a tela não "piscar". */
+export interface CurrentUserProfile extends UserProfile {
+  branding: ClinicBrandingInfo | null;
 }
 
 const userActor = (user: {
@@ -222,12 +229,22 @@ export class AuthService {
     }
   }
 
-  async getProfile(userId: string, tenantId: string): Promise<UserProfile> {
-    const user = await this.prisma
-      .forTenant(tenantId)
-      .user.findUnique({ where: { id: userId }, select: USER_PROFILE_SELECT });
+  /** Perfil do usuário logado, com a identidade visual da clínica. */
+  async getProfile(
+    userId: string,
+    tenantId: string,
+  ): Promise<CurrentUserProfile> {
+    const user = await this.prisma.forTenant(tenantId).user.findUnique({
+      where: { id: userId },
+      select: {
+        ...USER_PROFILE_SELECT,
+        clinic: { select: { branding: { select: CLINIC_BRANDING_SELECT } } },
+      },
+    });
     if (!user) throw new UnauthorizedException();
-    return user;
+
+    const { clinic, ...profile } = user;
+    return { ...profile, branding: clinic.branding };
   }
 
   /**

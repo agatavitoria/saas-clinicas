@@ -29,6 +29,7 @@ export function rlsStatements(
 const TENANT_FIELD: Partial<Record<Prisma.ModelName, string>> = {
   Clinic: 'id',
   ClinicBusinessHour: 'tenantId',
+  ClinicBranding: 'tenantId',
   User: 'tenantId',
   RefreshToken: 'tenantId',
   AuditLog: 'tenantId',

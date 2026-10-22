@@ -1,8 +1,25 @@
 <script setup lang="ts">
-import { useDisplay } from 'vuetify'
+import { useDisplay, useTheme } from 'vuetify'
 
 const { user, isAdmin, logout, refreshUser } = useAuth()
-const { refresh: refreshClinic } = useClinic()
+const { clinic, refresh: refreshClinic } = useClinic()
+const { primaryColor, clinicLogoUrl } = useBranding()
+
+// Cor da clínica no tema. Roda já no setup (com o valor em cache), antes da
+// primeira renderização; fora do painel (login, master) volta a cor padrão
+const theme = useTheme()
+watchEffect(() => {
+  theme.themes.value.light!.colors.primary = primaryColor.value
+})
+onBeforeUnmount(() => {
+  theme.themes.value.light!.colors.primary = DEFAULT_PRIMARY_COLOR
+})
+
+// Logo que não carrega (ex.: removido em outra aba) cai no ícone padrão
+const logoFailed = ref(false)
+watch(clinicLogoUrl, () => {
+  logoFailed.value = false
+})
 
 // Situação da clínica (ex.: exclusão agendada) para o aviso no topo
 onMounted(refreshClinic)
@@ -64,8 +81,15 @@ async function onLogout() {
   <v-app>
     <v-navigation-drawer v-model="drawer" :permanent="mdAndUp" :temporary="!mdAndUp">
       <div class="d-flex align-center ga-3 pa-4">
-        <v-icon icon="mdi-hospital-building" color="primary" />
-        <span class="text-subtitle-1 font-weight-bold">SaaS Clínicas</span>
+        <img
+          v-if="clinicLogoUrl && !logoFailed"
+          :src="clinicLogoUrl"
+          alt=""
+          class="clinic-logo"
+          @error="logoFailed = true"
+        >
+        <v-icon v-else icon="mdi-hospital-building" color="primary" />
+        <span class="text-subtitle-1 font-weight-bold text-truncate">{{ clinic?.name ?? 'SaaS Clínicas' }}</span>
       </div>
 
       <v-list nav density="comfortable" color="primary">
@@ -141,3 +165,12 @@ async function onLogout() {
     </v-main>
   </v-app>
 </template>
+
+<style scoped>
+.clinic-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+</style>

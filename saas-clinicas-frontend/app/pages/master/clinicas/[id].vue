@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ClinicDetails } from '~/types/clinic'
+import type { ClinicBranding, ClinicDetails } from '~/types/clinic'
 
 definePageMeta({ layout: 'master', middleware: 'platform-auth' })
 
@@ -96,6 +96,10 @@ async function runPending() {
   finally {
     running.value = false
   }
+}
+
+function onBrandingUpdated(branding: ClinicBranding) {
+  if (clinic.value) clinic.value = { ...clinic.value, branding }
 }
 
 const exporting = ref(false)
@@ -208,6 +212,7 @@ async function exportData() {
         <v-tabs v-model="tab" color="tertiary">
           <v-tab value="overview" prepend-icon="mdi-information-outline">Visão geral</v-tab>
           <v-tab value="users" prepend-icon="mdi-account-group-outline">Usuários</v-tab>
+          <v-tab value="branding" prepend-icon="mdi-palette-outline">Personalização</v-tab>
           <v-tab value="activity" prepend-icon="mdi-history">Atividades</v-tab>
         </v-tabs>
         <v-divider />
@@ -241,6 +246,22 @@ async function exportData() {
 
           <v-tabs-window-item value="users" class="pa-4">
             <UsersTable :base-path="`${basePath}/users`" />
+          </v-tabs-window-item>
+
+          <v-tabs-window-item value="branding" class="pa-4">
+            <ClinicNameForm
+              :name="clinic.name"
+              :path="basePath"
+              @update:clinic="(updated: ClinicDetails) => (clinic = updated)"
+              @notify="notify"
+            />
+            <v-divider class="my-6" />
+            <BrandingEditor
+              :branding="clinic.branding"
+              :base-path="basePath"
+              @update:branding="onBrandingUpdated"
+              @notify="notify"
+            />
           </v-tabs-window-item>
 
           <v-tabs-window-item value="activity" class="pa-4">

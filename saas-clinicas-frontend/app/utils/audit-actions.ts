@@ -31,6 +31,10 @@ export const AUDIT_ACTIONS: Record<string, ActionInfo> = {
   'clinic.created': { label: 'Clínica criada', icon: 'mdi-domain-plus', color: 'success', sentence: 'criou a clínica {target}' },
   'clinic.deactivated': { label: 'Clínica desativada', icon: 'mdi-domain-off', color: 'error', sentence: 'desativou a clínica {target}' },
   'clinic.reactivated': { label: 'Clínica reativada', icon: 'mdi-domain', color: 'success', sentence: 'reativou a clínica {target}' },
+  'clinic.renamed': { label: 'Clínica renomeada', icon: 'mdi-rename-outline', color: 'primary', sentence: 'renomeou a clínica para {target}' },
+  'clinic.branding_updated': { label: 'Cor alterada', icon: 'mdi-palette-outline', color: 'primary', sentence: 'alterou a cor principal de {target}' },
+  'clinic.logo_updated': { label: 'Logo alterado', icon: 'mdi-image-edit-outline', color: 'primary', sentence: 'alterou o logo de {target}' },
+  'clinic.logo_removed': { label: 'Logo removido', icon: 'mdi-image-remove-outline', color: 'secondary', sentence: 'removeu o logo de {target}' },
   'patient.created': { label: 'Paciente cadastrado', icon: 'mdi-account-heart-outline', color: 'success', sentence: 'cadastrou o paciente {target}' },
   'patient.updated': { label: 'Paciente editado', icon: 'mdi-account-edit-outline', color: 'primary', sentence: 'editou o cadastro de {target}' },
   'patient.viewed': { label: 'Ficha consultada', icon: 'mdi-eye-outline', color: 'secondary', sentence: 'abriu a ficha de {target}' },
@@ -86,7 +90,11 @@ export function auditSentence(entry: AuditLogEntry): SentencePart[] {
 
 /** Complemento a partir do metadata, quando houver. */
 function auditDetail(entry: AuditLogEntry): string | null {
-  const { roles, scheduledFor, fields } = entry.metadata
+  const { roles, scheduledFor, fields, primaryColor } = entry.metadata
+  if (entry.action === 'clinic.branding_updated' && primaryColor && typeof primaryColor === 'object') {
+    const { from, to } = primaryColor as { from?: string | null, to?: string | null }
+    return `de ${from ?? 'padrão'} para ${to ?? 'padrão'}`
+  }
   if (entry.action === 'user.created' && Array.isArray(roles)) {
     return `como ${rolesLabel(roles as UserRole[]).toLowerCase()}`
   }

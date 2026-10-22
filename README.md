@@ -41,6 +41,11 @@ agenda, e nunca enxerga dados de outra clínica.
     mostra quantos dias faltam e o admin pode cancelar. Depois, o histórico é
     mantido de forma anônima;
   - IP apagado dos logs depois de 180 dias.
+- **Personalização**, em `/painel/clinica` (admin) e na clínica em `/master`:
+  - nome da clínica;
+  - cor principal escolhida numa paleta ou livre, com contraste mínimo de
+    4,5:1 com o branco (WCAG AA);
+  - logo em PNG, JPG ou WebP, com até 512 KB, exibido no menu do painel.
 
 **Planejado**
 
@@ -87,9 +92,10 @@ sistema guarda dados de saúde.
   - Métricas de uso por clínica e alertas.
   - Limite de requisições por clínica, para que uma não sobrecarregue as
     outras.
-- [ ] **Personalização por tenant.** Logo, cores e preferências de cada
-  clínica, como fuso horário, duração padrão da consulta e textos de
-  lembrete.
+- [ ] **Personalização por tenant.** Logo e cor principal já existem. Pendências:
+  - [ ] subdomínio por clínica, com o login já no tema dela;
+  - [ ] preferências como fuso horário, duração padrão da consulta e textos
+    de lembrete.
 
 ## Papéis
 
@@ -197,8 +203,8 @@ esquecido), o banco devolve zero linhas em vez de vazar dados.
   SET LOCAL ROLE app_tenant;                               -- papel restrito
   SELECT set_config('app.tenant_id', '<id da clínica>', true);
   ```
-  As políticas de `clinics`, `clinic_business_hours`, `users`,
-  `refresh_tokens`, `audit_logs`, `patients` e `patient_records` só deixam
+  As políticas de `clinics`, `clinic_business_hours`, `clinic_brandings`,
+  `users`, `refresh_tokens`, `audit_logs`, `patients` e `patient_records` só deixam
   passar linhas em que `tenantId = app_current_tenant()`.
 - **Transações com várias operações:** use
   `prisma.tenantTransaction(tenantId, async (tx) => …)`. Ela faz o mesmo
@@ -224,6 +230,7 @@ esquecido), o banco devolve zero linhas em vez de vazar dados.
 ```mermaid
 erDiagram
     clinics ||--|{ clinic_business_hours : "funciona em"
+    clinics ||--o| clinic_brandings : "tem identidade visual"
     clinics ||--|{ users : "tem equipe"
     clinics ||--o{ refresh_tokens : "isola por tenant"
     users ||--o{ refresh_tokens : "tem sessões"
@@ -245,6 +252,15 @@ erDiagram
         string deletionReason
         datetime deletionScheduledFor "LGPD: exclusão definitiva"
         datetime createdAt
+        datetime updatedAt
+    }
+
+    clinic_brandings {
+        uuid tenantId PK "também FK: uma linha por clínica"
+        string primaryColor "#RRGGBB, opcional"
+        bytes logo "PNG, JPEG ou WebP, até 512 KB"
+        string logoMimeType
+        datetime logoUpdatedAt "versão do logo, para o cache"
         datetime updatedAt
     }
 
@@ -349,6 +365,11 @@ Como ler o diagrama:
 - **`clinic_business_hours`** tem uma linha por dia de funcionamento. O par
   (`tenantId`, `weekday`) é único, então não há dois horários para o mesmo dia.
   Toda clínica tem pelo menos um dia.
+- **`clinic_brandings`** guarda a cor principal e o logo, com no máximo uma
+  linha por clínica. Fica separada de `clinics` para que os bytes do logo não
+  sejam lidos em toda consulta da clínica. O formato do logo é conferido pelos
+  primeiros bytes do arquivo, e não pelo `Content-Type`. SVG não é aceito,
+  porque pode conter scripts.
 - **`users`** é a equipe. Toda clínica tem pelo menos um administrador ativo:
   o sistema não deixa inativar o último.
 - **`refresh_tokens`** guarda as sessões. Cada linha pertence a um usuário e
@@ -657,9 +678,14 @@ que o frontend traduz para uma mensagem em português.
 | POST   | `/api/auth/login`                 | pública      | login (`{ email, password }`)               |
 | POST   | `/api/auth/refresh`               | pública      | renova a sessão a partir do `refresh_token` |
 | POST   | `/api/auth/logout`                | pública      | encerra a sessão e limpa os cookies         |
-| GET    | `/api/auth/me`                    | logado       | usuário logado (inclui `mustChangePassword`) |
+| GET    | `/api/auth/me`                    | logado       | usuário logado, com `mustChangePassword` e `branding` |
 | POST   | `/api/auth/change-password`       | logado       | `{ currentPassword, newPassword }`          |
-| GET    | `/api/clinics/me`                 | logado       | dados e horários da clínica do usuário      |
+| GET    | `/api/clinics/me`                 | logado       | dados, horários e `branding` da clínica     |
+| PATCH  | `/api/clinics/me`                 | `ADMIN`      | `{ name }`: renomeia a clínica              |
+| GET    | `/api/clinics/me/logo`            | logado       | imagem do logo (use `?v=<logoUpdatedAt>`)   |
+| PATCH  | `/api/clinics/me/branding`        | `ADMIN`      | `{ primaryColor }` (`#RRGGBB` ou `null`)    |
+| PUT    | `/api/clinics/me/branding/logo`   | `ADMIN`      | corpo = a imagem, `Content-Type: image/*`   |
+| DELETE | `/api/clinics/me/branding/logo`   | `ADMIN`      | remove o logo                               |
 | GET    | `/api/users`                      | logado       | equipe da clínica                           |
 | POST   | `/api/users`                      | `ADMIN`      | cria usuário com senha provisória           |
 | PATCH  | `/api/users/:id/status`           | `ADMIN`      | `{ active }`: inativa ou reativa            |
@@ -687,7 +713,12 @@ que o frontend traduz para uma mensagem em português.
 | GET    | `/api/platform/clinics`                             | todas as clínicas, com número de usuários   |
 | POST   | `/api/platform/clinics`                             | cria clínica + administrador                |
 | GET    | `/api/platform/clinics/:id`                         | dados e horários                            |
+| PATCH  | `/api/platform/clinics/:id`                         | `{ name }`: renomeia a clínica              |
 | PATCH  | `/api/platform/clinics/:id/status`                  | `{ active }`: inativar derruba toda a equipe |
+| GET    | `/api/platform/clinics/:id/logo`                    | imagem do logo                              |
+| PATCH  | `/api/platform/clinics/:id/branding`                | `{ primaryColor }`                          |
+| PUT    | `/api/platform/clinics/:id/branding/logo`           | envia o logo (corpo = a imagem)             |
+| DELETE | `/api/platform/clinics/:id/branding/logo`           | remove o logo                               |
 | GET    | `/api/platform/clinics/:id/users`                   | equipe da clínica                           |
 | POST   | `/api/platform/clinics/:id/users`                   | cria usuário                                |
 | PATCH  | `/api/platform/clinics/:id/users/:userId/status`    | inativa ou reativa                          |

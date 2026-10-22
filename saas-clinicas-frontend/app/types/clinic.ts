@@ -35,6 +35,14 @@ export interface DeletionInfo {
   reason: string | null
 }
 
+/** Identidade visual; null quando a clínica usa o padrão do sistema. */
+export interface ClinicBranding {
+  /** #RRGGBB; null = cor padrão */
+  primaryColor: string | null
+  /** null = sem logo. Muda a cada troca (usado para invalidar o cache). */
+  logoUpdatedAt: string | null
+}
+
 export interface ClinicDetails {
   id: string
   name: string
@@ -43,6 +51,7 @@ export interface ClinicDetails {
   document: string | null
   active: boolean
   businessHours: BusinessHour[]
+  branding: ClinicBranding | null
   deletion: DeletionInfo
   createdAt: string
 }

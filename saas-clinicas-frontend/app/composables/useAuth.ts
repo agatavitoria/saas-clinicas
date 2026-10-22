@@ -1,4 +1,4 @@
-import type { UserProfile, UserRole } from '~/types/auth'
+import type { CurrentUserProfile, UserProfile, UserRole } from '~/types/auth'
 
 /** Sessão do usuário de clínica. */
 export function useAuth() {
@@ -6,16 +6,24 @@ export function useAuth() {
   const user = useAuthUser()
   const loaded = useState('auth:loaded', () => false)
   const clinic = useState('clinic:current', () => null)
+  const { setBranding, resetBranding } = useBranding()
+
+  /** /auth/me traz também a identidade visual da clínica. */
+  async function fetchProfile(): Promise<UserProfile> {
+    const { branding, ...profile } = await api<CurrentUserProfile>('/auth/me')
+    setUser(profile)
+    setBranding(profile.tenantId, branding)
+    return profile
+  }
 
   /** Carrega o usuário da sessão atual (renovando-a se preciso). */
   async function fetchUser(): Promise<UserProfile | null> {
     try {
-      user.value = await api<UserProfile>('/auth/me')
+      await fetchProfile()
     }
     catch {
-      user.value = null
+      setUser(null)
     }
-    loaded.value = true
     return user.value
   }
 
@@ -25,7 +33,7 @@ export function useAuth() {
    */
   async function refreshUser(): Promise<void> {
     try {
-      setUser(await api<UserProfile>('/auth/me'))
+      await fetchProfile()
     }
     catch (error) {
       if (statusOf(error) === 401) setUser(null)
@@ -65,7 +73,10 @@ export function useAuth() {
 
   function setUser(value: UserProfile | null) {
     // Outra conta (ou logout): descarta os dados da clínica anterior
-    if (value?.tenantId !== user.value?.tenantId) clinic.value = null
+    if (value?.tenantId !== user.value?.tenantId) {
+      clinic.value = null
+      resetBranding(value?.tenantId)
+    }
     user.value = value
     loaded.value = true
   }

@@ -9,10 +9,12 @@ const DAY_IN_MS = 24 * 60 * 60 * 1000
 export function useClinic() {
   const api = useApi()
   const clinic = useState<ClinicDetails | null>('clinic:current', () => null)
+  const { setBranding } = useBranding()
 
   async function refresh(): Promise<ClinicDetails | null> {
     try {
       clinic.value = await api<ClinicDetails>('/clinics/me')
+      setBranding(clinic.value.id, clinic.value.branding)
     }
     catch {
       clinic.value = null

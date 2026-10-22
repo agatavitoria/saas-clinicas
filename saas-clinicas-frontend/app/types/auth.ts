@@ -1,4 +1,6 @@
-export type UserRole = 'ADMIN' | 'PROFESSIONAL' | 'RECEPTION'
+import type { ClinicBranding } from './clinic'
+
+export type UserRole ='ADMIN' | 'PROFESSIONAL' | 'RECEPTION'
 
 export interface UserProfile {
   id: string
@@ -9,6 +11,11 @@ export interface UserProfile {
   roles: UserRole[]
   /** Senha provisória: precisa trocar antes de usar o sistema. */
   mustChangePassword: boolean
+}
+
+/** Resposta do /auth/me: o perfil com a identidade visual da clínica. */
+export interface CurrentUserProfile extends UserProfile {
+  branding: ClinicBranding | null
 }
 
 export interface TeamMember {

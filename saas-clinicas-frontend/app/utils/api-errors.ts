@@ -21,6 +21,9 @@ const MESSAGES: Record<string, string> = {
   PATIENT_INACTIVE: 'Este paciente está inativo. Reative o cadastro para registrar atendimentos.',
   INVALID_AMENDMENT: 'Adicione o adendo ao registro original, não a outro adendo.',
   NOT_RECORD_AUTHOR: 'Só quem fez o registro (ou um administrador) pode adicionar um adendo.',
+  LOW_COLOR_CONTRAST: 'Essa cor é clara demais para textos em branco. Escolha uma cor mais escura.',
+  INVALID_LOGO: 'O logo precisa ser uma imagem PNG, JPG ou WebP.',
+  LOGO_TOO_LARGE: 'O logo pode ter no máximo 512 KB.',
 }
 
 /** Mensagem em português para exibir ao usuário. */
@@ -35,6 +38,8 @@ export function errorMessage(error: unknown, fallback?: string): string {
       return 'Você não tem permissão para esta ação.'
     case 404:
       return 'Registro não encontrado.'
+    case 413:
+      return 'O arquivo é grande demais.'
     case 429:
       return 'Muitas tentativas. Aguarde um minuto e tente novamente.'
     case undefined:

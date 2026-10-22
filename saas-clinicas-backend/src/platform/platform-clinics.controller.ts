@@ -6,10 +6,13 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Delete,
   Patch,
   Post,
+  Put,
   Query,
   Res,
+  StreamableFile,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import {
@@ -18,13 +21,18 @@ import {
 } from '../audit/audit-logs.service.js';
 import { ListAuditLogsDto } from '../audit/dto/list-audit-logs.dto.js';
 import { PlatformRoute } from '../auth/decorators/platform-route.decorator.js';
+import { ClinicBrandingService } from '../clinics/clinic-branding.service.js';
 import { ClinicsService } from '../clinics/clinics.service.js';
 import type {
+  ClinicBrandingInfo,
   ClinicDetails,
   ClinicResponse,
   ClinicSummary,
 } from '../clinics/dto/clinic-response.dto.js';
 import { CreateClinicDto } from '../clinics/dto/create-clinic.dto.js';
+import { UpdateBrandingDto } from '../clinics/dto/update-branding.dto.js';
+import { UpdateClinicDto } from '../clinics/dto/update-clinic.dto.js';
+import { sendLogo } from '../clinics/logo-response.js';
 import { sendAsDownload } from '../privacy/export-response.js';
 import {
   type ClinicExport,
@@ -38,6 +46,7 @@ import { SetActiveDto } from '../users/dto/set-active.dto.js';
 export class PlatformClinicsController {
   constructor(
     private readonly clinicsService: ClinicsService,
+    private readonly branding: ClinicBrandingService,
     private readonly privacy: PrivacyService,
     private readonly auditLogs: AuditLogsService,
   ) {}
@@ -58,12 +67,52 @@ export class PlatformClinicsController {
     return this.clinicsService.findOne(id);
   }
 
+  @Patch(':id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateClinicDto,
+  ): Promise<ClinicDetails> {
+    return this.clinicsService.rename(id, dto.name);
+  }
+
   @Patch(':id/status')
   setActive(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SetActiveDto,
   ): Promise<ClinicDetails> {
     return this.clinicsService.setActive(id, dto.active);
+  }
+
+  @Get(':id/logo')
+  async logo(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    return sendLogo(res, await this.branding.getLogo(id));
+  }
+
+  @Patch(':id/branding')
+  updateBranding(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateBrandingDto,
+  ): Promise<ClinicBrandingInfo> {
+    return this.branding.updateColor(id, dto.primaryColor);
+  }
+
+  /** O corpo é a própria imagem (Content-Type image/png, jpeg ou webp). */
+  @Put(':id/branding/logo')
+  setLogo(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: Buffer,
+  ): Promise<ClinicBrandingInfo> {
+    return this.branding.setLogo(id, body);
+  }
+
+  @Delete(':id/branding/logo')
+  removeLogo(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ClinicBrandingInfo> {
+    return this.branding.removeLogo(id);
   }
 
   @Get(':id/audit-logs')

@@ -34,6 +34,7 @@ model Clinic {
   updatedAt             DateTime  @updatedAt
 
   businessHours  ClinicBusinessHour[]
+  branding       ClinicBranding?
   users          User[]
   refreshTokens  RefreshToken[]
   patients       Patient[]
@@ -56,6 +57,24 @@ model ClinicBusinessHour {
 
   @@unique([tenantId, weekday])
   @@map("clinic_business_hours")
+}
+
+/// Identidade visual da clínica (1:1). Fica fora de `clinics` para que o logo
+/// (bytes) não seja carregado em toda consulta da clínica.
+model ClinicBranding {
+  tenantId      String    @id @db.Uuid
+  /// Cor principal no formato #RRGGBB; null usa a cor padrão do sistema
+  primaryColor  String?
+  /// PNG, JPEG ou WebP, validado pelos bytes (até 512 KB)
+  logo          Bytes?
+  logoMimeType  String?
+  /// Muda a cada troca do logo; o front usa para invalidar o cache da imagem
+  logoUpdatedAt DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  clinic Clinic @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("clinic_brandings")
 }
 
 model User {

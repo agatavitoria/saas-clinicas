@@ -21,6 +21,10 @@ export const AUDIT_ACTIONS = [
   'clinic.created',
   'clinic.deactivated',
   'clinic.reactivated',
+  'clinic.renamed',
+  'clinic.branding_updated',
+  'clinic.logo_updated',
+  'clinic.logo_removed',
   // Pacientes e prontuário
   'patient.created',
   'patient.updated',

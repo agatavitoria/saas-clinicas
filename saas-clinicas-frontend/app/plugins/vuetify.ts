@@ -12,7 +12,8 @@ export default defineNuxtPlugin((nuxtApp) => {
         light: {
           dark: false,
           colors: {
-            primary: '#00696B',
+            // A cor da clínica substitui esta no painel (ver layouts/dashboard.vue)
+            primary: DEFAULT_PRIMARY_COLOR,
             secondary: '#4A6363',
             tertiary: '#4B607C',
             error: '#BA1A1A',

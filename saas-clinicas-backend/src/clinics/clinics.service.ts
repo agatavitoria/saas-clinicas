@@ -10,6 +10,7 @@ import {
   withDeletionInfo,
 } from '../privacy/deletion-status.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CLINIC_BRANDING_SELECT } from './branding.js';
 import type {
   ClinicDetails,
   ClinicResponse,
@@ -32,6 +33,7 @@ export const CLINIC_DETAILS_SELECT = {
     select: { weekday: true, opensAt: true, closesAt: true },
     orderBy: { weekday: 'asc' },
   },
+  branding: { select: CLINIC_BRANDING_SELECT },
 } as const;
 
 export const clinicTarget = (clinic: { id: string; name: string }) => ({
@@ -149,6 +151,28 @@ export class ClinicsService {
       .forTenant(id)
       .clinic.findFirst({ select: CLINIC_DETAILS_SELECT });
     if (!clinic) throw new NotFoundException('Clinic not found');
+    return withDeletionInfo(clinic);
+  }
+
+  /**
+   * Renomeia a clínica (admin ou master). O nome não vai no metadata da
+   * auditoria: pode ser o nome de uma pessoa (ex.: consultório).
+   */
+  async rename(id: string, name: string): Promise<ClinicDetails> {
+    const current = await this.findOne(id);
+    if (current.name === name) return current;
+
+    const clinic = await this.prisma.tenantTransaction(id, async (tx) => {
+      const updated = await tx.clinic.update({
+        where: { id },
+        data: { name },
+        select: CLINIC_DETAILS_SELECT,
+      });
+      await this.audit.log(tx, 'clinic.renamed', {
+        target: clinicTarget(updated),
+      });
+      return updated;
+    });
     return withDeletionInfo(clinic);
   }
 

@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import type { VForm } from 'vuetify/components'
-import type { ClinicDetails } from '~/types/clinic'
+import type { ClinicBranding, ClinicDetails } from '~/types/clinic'
 
 definePageMeta({ layout: 'dashboard', middleware: ['auth', 'admin'] })
 useHead({ title: 'Clínica · SaaS Clínicas' })
 
 const api = useApi()
-const { clinic, refresh, daysUntilDeletion } = useClinic()
+const { clinic, refresh, daysUntilDeletion, readOnly } = useClinic()
+const { setBranding } = useBranding()
+
+function onBrandingUpdated(branding: ClinicBranding) {
+  if (!clinic.value) return
+  clinic.value = { ...clinic.value, branding }
+  setBranding(clinic.value.id, branding)
+}
 
 const status = ref<'pending' | 'success' | 'error'>('pending')
 onMounted(async () => {
@@ -98,7 +105,7 @@ const week = computed(() =>
   <v-container class="py-6" max-width="1000">
     <div class="mb-6">
       <h1 class="text-h4 font-weight-bold">Clínica</h1>
-      <p class="text-body-1 text-medium-emphasis">Dados da clínica e privacidade.</p>
+      <p class="text-body-1 text-medium-emphasis">Dados da clínica, personalização e privacidade.</p>
     </div>
 
     <v-skeleton-loader v-if="status === 'pending' && !clinic" type="article, article" class="rounded-xl" />
@@ -137,6 +144,29 @@ const week = computed(() =>
                 </div>
               </v-list-item>
             </v-list>
+          </v-card>
+        </v-col>
+
+        <v-col cols="12">
+          <v-card elevation="1">
+            <v-card-item prepend-icon="mdi-palette-outline" title="Personalização" subtitle="Nome, cor e logo da clínica no sistema" />
+            <v-card-text>
+              <ClinicNameForm
+                :name="clinic.name"
+                path="/clinics/me"
+                :read-only="readOnly"
+                @update:clinic="(updated: ClinicDetails) => (clinic = updated)"
+                @notify="notify"
+              />
+              <v-divider class="my-6" />
+              <BrandingEditor
+                :branding="clinic.branding"
+                base-path="/clinics/me"
+                :read-only="readOnly"
+                @update:branding="onBrandingUpdated"
+                @notify="notify"
+              />
+            </v-card-text>
           </v-card>
         </v-col>
 

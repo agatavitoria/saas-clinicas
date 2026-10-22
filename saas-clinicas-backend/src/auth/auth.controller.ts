@@ -14,7 +14,7 @@ import type { Request, Response } from 'express';
 import { AuthCookiesService } from './auth-cookies.service.js';
 import type { AuthUser, UserProfile } from './auth-user.js';
 import { TENANT_COOKIES } from './auth.constants.js';
-import { AuthService } from './auth.service.js';
+import { AuthService, type CurrentUserProfile } from './auth.service.js';
 import { AllowDuringDeletion } from './decorators/allow-during-deletion.decorator.js';
 import { AllowPendingPasswordChange } from './decorators/allow-pending-password-change.decorator.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
@@ -77,7 +77,7 @@ export class AuthController {
 
   @AllowPendingPasswordChange()
   @Get('me')
-  me(@CurrentUser() user: AuthUser): Promise<UserProfile> {
+  me(@CurrentUser() user: AuthUser): Promise<CurrentUserProfile> {
     return this.authService.getProfile(user.userId, user.tenantId);
   }
 
