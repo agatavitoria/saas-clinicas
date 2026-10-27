@@ -5,6 +5,8 @@ const props = defineProps<{ form: ClinicForm }>()
 
 const emit = defineEmits<{ edit: [step: number] }>()
 
+const { clinicHostSuffix } = useAreaUrls()
+
 const openHours = computed(() => props.form.businessHours.filter(hour => hour.open))
 </script>
 
@@ -22,6 +24,7 @@ const openHours = computed(() => props.form.businessHours.filter(hour => hour.op
       </v-card-item>
       <v-card-text>
         <div class="text-body-1 font-weight-medium">{{ form.clinic.name }}</div>
+        <div>{{ form.clinic.slug }}{{ clinicHostSuffix }}</div>
         <div>{{ form.clinic.email }}</div>
         <div>{{ form.clinic.phone }}</div>
         <div v-if="form.clinic.document">{{ form.clinic.document }}</div>

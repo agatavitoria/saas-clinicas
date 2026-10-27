@@ -77,7 +77,7 @@ const HEADERS = [
         :headers="HEADERS"
         :items="clinics"
         :search="search"
-        :filter-keys="['name', 'email']"
+        :filter-keys="['name', 'slug', 'email']"
         :loading="status === 'pending'"
         items-per-page="15"
         hover
@@ -89,7 +89,7 @@ const HEADERS = [
         <template #[`item.name`]="{ item }">
           <div class="py-2 cursor-pointer">
             <div class="font-weight-medium">{{ item.name }}</div>
-            <div class="text-caption text-medium-emphasis">{{ item.email }}</div>
+            <div class="text-caption text-medium-emphasis">{{ item.slug }} · {{ item.email }}</div>
           </div>
         </template>
         <template #[`item.phone`]="{ item }">{{ formatPhone(item.phone) }}</template>

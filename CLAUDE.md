@@ -18,7 +18,8 @@ As subpastas NÃO devem ter `.git` próprio.
 
 ## Domínio (escopo inicial)
 
-- **Clínica (tenant)**: nome, dados de contato, configurações de horário
+- **Clínica (tenant)**: nome, `slug` (subdomínio, único e fixo depois de
+  criado), dados de contato, configurações de horário
 - **Usuário**: pertence a uma clínica; tem **um ou mais** papéis (`roles`): administrador, profissional, recepção. As permissões somam
 - **Paciente**: pertence a uma clínica; CPF único dentro da clínica (o mesmo
   CPF pode existir em outra, sem vínculo). Inativado, nunca apagado.
@@ -54,6 +55,14 @@ As subpastas NÃO devem ter `.git` próprio.
   como hash e tem detecção de reuso. A regra de rotação é compartilhada em
   `src/auth/refresh-token-rotation.ts`.
 - API sob o prefixo `/api`; o frontend acessa via proxy do Nuxt (`server/api/[...path].ts`, backend em `NUXT_API_URL`), que fixa o `X-Forwarded-For` com o IP real
+- Subdomínios (`NUXT_PUBLIC_BASE_DOMAIN`, `localhost` em dev): raiz só pede o
+  endereço, `admin.` é o master e `<slug>.` é a clínica.
+  - O middleware global `area.global.ts` restringe as páginas de cada área.
+  - O proxy recusa rotas de outra área e envia `X-Clinic-Slug` (o do
+    navegador é descartado).
+  - O login exige o header e só aceita usuários daquela clínica; o guard
+    confere o header quando ele vem.
+  - `GET /api/public/clinics/:slug` dá o tema da tela de login (SSR).
 - Não há cadastro público: o master cria as clínicas. O primeiro master é
   criado com `npm run platform:create-admin`.
 
@@ -82,7 +91,8 @@ As subpastas NÃO devem ter `.git` próprio.
 - Acesso a dados de clínica sempre via `prisma.forTenant(tenantId)`. O
   `tenantId` vem do token, exceto nas rotas `/api/platform/clinics/:id/...`
   do master, onde vem da URL. O `prisma` sem escopo fica restrito a login,
-  refresh e às rotas do master.
+  refresh, às rotas do master e à busca da clínica pelo slug nas rotas
+  públicas de tema.
 - Auditoria: toda ação relevante chama `audit.log(tx, 'recurso.verbo', { target })`
   dentro da transação da própria ação (use transação interativa). Ator e IP vêm
   do contexto (`nestjs-cls`).
@@ -120,7 +130,7 @@ Raiz (não tem `package.json`):
 - `make up [back|front]` — sobe banco + backend + frontend (ou só um deles)
 - `make db` / `make db-down` — sobe/para o Postgres
 - `make migrate` — cria/aplica migrations no banco de desenvolvimento (regenera o client e roda a seed)
-- `make seed` — seed de desenvolvimento: admin master padrão `admin` / `admin` (só fora de produção)
+- `make seed` — seed de desenvolvimento: admin master padrão `admin` / `admin` e a clínica `demo` (`admin@demo.com` / `demo1234`), só fora de produção
 
 Backend (`saas-clinicas-backend/`, copie `.env.example` para `.env`):
 - `npm run start:dev` — servidor em modo desenvolvimento

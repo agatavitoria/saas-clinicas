@@ -39,10 +39,10 @@ export default defineNuxtConfig({
 
   routeRules: {
     // A área logada depende do refresh token, que só o navegador envia
-    // (cookie restrito a /api/auth); por isso renderiza no cliente
+    // (cookie restrito a /api/auth); por isso renderiza no cliente. O login
+    // da clínica renderiza no servidor, já com a cor e o logo dela
     '/painel': { ssr: false },
     '/painel/**': { ssr: false },
-    '/login': { ssr: false },
     '/trocar-senha': { ssr: false },
     '/master': { ssr: false },
     '/master/**': { ssr: false },
@@ -52,6 +52,11 @@ export default defineNuxtConfig({
     // Endereço do backend usado pelo proxy server/api/[...path].ts.
     // Lido ao iniciar o servidor: sobrescreva com NUXT_API_URL.
     apiUrl: 'http://localhost:3001',
+    public: {
+      // Domínio raiz: as clínicas ficam em <slug>.<domínio> e o master em
+      // admin.<domínio>. Em produção, NUXT_PUBLIC_BASE_DOMAIN=seudominio.com.br
+      baseDomain: 'localhost',
+    },
   },
 
   devServer: { port: 3000 },

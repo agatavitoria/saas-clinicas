@@ -4,6 +4,8 @@ import type { UserProfile } from './auth'
 export interface CreateClinicPayload {
   clinic: {
     name: string
+    /** Subdomínio; não muda depois de criado */
+    slug: string
     email: string
     phone: string
     document?: string
@@ -43,9 +45,17 @@ export interface ClinicBranding {
   logoUpdatedAt: string | null
 }
 
+/** Tema público da tela de login (GET /public/clinics/:slug). */
+export interface PublicClinicTheme extends ClinicBranding {
+  name: string
+  slug: string
+}
+
 export interface ClinicDetails {
   id: string
   name: string
+  /** Subdomínio pelo qual a equipe acessa o sistema */
+  slug: string
   email: string
   phone: string
   document: string | null
@@ -59,6 +69,7 @@ export interface ClinicDetails {
 export interface ClinicSummary {
   id: string
   name: string
+  slug: string
   email: string
   phone: string
   active: boolean
@@ -78,6 +89,7 @@ export interface ClinicResponse {
 export interface ClinicForm {
   clinic: {
     name: string
+    slug: string
     email: string
     phone: string
     document: string

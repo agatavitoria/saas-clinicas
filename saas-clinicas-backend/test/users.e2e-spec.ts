@@ -10,6 +10,7 @@ import {
   PASSWORD,
   resetDatabase,
   signUpClinic,
+  postLogin,
 } from './utils.js';
 
 describe('Team management by the clinic admin (e2e)', () => {
@@ -124,10 +125,10 @@ describe('Team management by the clinic admin (e2e)', () => {
       // O access token ainda não expirou, mas a sessão já não vale
       await as(asCookieHeader(session)).get('/api/auth/me').expect(401);
 
-      const loginResponse = await http(app)
-        .post('/api/auth/login')
-        .send({ email: 'pro@alfa.com', password: PASSWORD })
-        .expect(403);
+      const loginResponse = await postLogin(app, {
+        email: 'pro@alfa.com',
+        password: PASSWORD,
+      }).expect(403);
       expect(loginResponse.body.code).toBe('USER_INACTIVE');
     });
 
@@ -215,14 +216,14 @@ describe('Team management by the clinic admin (e2e)', () => {
       const blocked = await as(session).get('/api/users').expect(403);
       expect(blocked.body.code).toBe('PASSWORD_CHANGE_REQUIRED');
 
-      await http(app)
-        .post('/api/auth/login')
-        .send({ email: 'pro@alfa.com', password: PASSWORD })
-        .expect(401);
-      const relogin = await http(app)
-        .post('/api/auth/login')
-        .send({ email: 'pro@alfa.com', password: 'provisoria-nova' })
-        .expect(200);
+      await postLogin(app, {
+        email: 'pro@alfa.com',
+        password: PASSWORD,
+      }).expect(401);
+      const relogin = await postLogin(app, {
+        email: 'pro@alfa.com',
+        password: 'provisoria-nova',
+      }).expect(200);
       expect(relogin.body.user.mustChangePassword).toBe(true);
     });
   });

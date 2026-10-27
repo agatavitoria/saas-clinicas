@@ -128,7 +128,16 @@ export class AuthService {
     );
   }
 
-  async login(email: string, password: string): Promise<Session> {
+  /**
+   * Login no subdomínio de uma clínica (`clinicSlug`). O usuário de outra
+   * clínica recebe a mesma resposta de senha errada, para não revelar que o
+   * e-mail existe em outro lugar.
+   */
+  async login(
+    email: string,
+    password: string,
+    clinicSlug: string,
+  ): Promise<Session> {
     // O login é a única busca de usuário sem tenant: o e-mail é único na
     // plataforma e é ele que identifica a clínica.
     const user = await this.prisma.user.findUnique({
@@ -137,7 +146,7 @@ export class AuthService {
         ...USER_PROFILE_SELECT,
         passwordHash: true,
         active: true,
-        clinic: { select: { active: true } },
+        clinic: { select: { active: true, slug: true } },
       },
     });
 
@@ -145,7 +154,7 @@ export class AuthService {
       user?.passwordHash ?? (await this.dummyHash),
       password,
     );
-    if (!user || !valid) {
+    if (!user || !valid || user.clinic.slug !== clinicSlug) {
       // TODO(audit): registrar auth.login_failed (só para e-mails de usuários
       // existentes, para não guardar e-mails digitados por engano)
       throw new UnauthorizedException('Invalid email or password');

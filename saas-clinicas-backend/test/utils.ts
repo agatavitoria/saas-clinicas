@@ -6,6 +6,7 @@ import { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app/configure-app.js';
 import { ClinicsService } from '../src/clinics/clinics.service.js';
+import { CLINIC_SLUG_HEADER } from '../src/clinics/slug.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
 export async function createTestApp(): Promise<{
@@ -40,6 +41,7 @@ export const PASSWORD = 'senha-segura';
 export const clinicPayload = (slug: string) => ({
   clinic: {
     name: `Clínica ${slug}`,
+    slug,
     email: `contato@${slug}.com`,
     phone: '(11) 3333-4444',
     document: '11.222.333/0001-81',
@@ -58,16 +60,29 @@ export const clinicPayload = (slug: string) => ({
 export const http = (app: INestApplication<App>) =>
   request(app.getHttpServer());
 
+/**
+ * Slug da clínica de um e-mail de teste: os e-mails seguem `<nome>@<slug>.com`
+ * (ver clinicPayload).
+ */
+export const slugOfEmail = (email: string) => email.split('@')[1].split('.')[0];
+
+/**
+ * POST /api/auth/login como o proxy do Nuxt faria no subdomínio da clínica
+ * (por padrão, a do domínio do e-mail).
+ */
+export const postLogin = (
+  app: INestApplication<App>,
+  body: { email: string; password: string },
+  slug = slugOfEmail(body.email),
+) => http(app).post('/api/auth/login').set(CLINIC_SLUG_HEADER, slug).send(body);
+
 /** Faz login de clínica e devolve os cookies da sessão. */
 export async function login(
   app: INestApplication<App>,
   email: string,
   password = PASSWORD,
 ): Promise<string[]> {
-  const response = await http(app)
-    .post('/api/auth/login')
-    .send({ email, password })
-    .expect(200);
+  const response = await postLogin(app, { email, password }).expect(200);
   return setCookies(response);
 }
 

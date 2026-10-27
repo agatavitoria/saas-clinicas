@@ -1,5 +1,35 @@
 <script setup lang="ts">
+import type { VForm } from 'vuetify/components'
+
 useHead({ title: 'SaaS Clínicas' })
+
+const api = useApi()
+const { clinicUrl, clinicHostSuffix } = useAreaUrls()
+
+const form = ref<VForm>()
+const slug = ref('')
+const searching = ref(false)
+const slugError = ref('')
+
+/** Confere se o endereço existe antes de sair da página. */
+async function goToClinic() {
+  const { valid } = (await form.value?.validate()) ?? { valid: false }
+  if (!valid) return
+
+  const value = slug.value.trim().toLowerCase()
+  searching.value = true
+  slugError.value = ''
+  try {
+    await api(`/public/clinics/${value}`)
+    await navigateTo(`${clinicUrl(value)}/login`, { external: true })
+  }
+  catch (error) {
+    slugError.value = errorMessage(error)
+  }
+  finally {
+    searching.value = false
+  }
+}
 
 const features = [
   { icon: 'mdi-calendar-clock', title: 'Agenda por profissional', text: 'Cada profissional com seus horários e atendimentos.' },
@@ -19,14 +49,33 @@ const features = [
           Organize profissionais, pacientes e agendamentos da sua clínica em um
           só lugar.
         </p>
-        <v-btn
-          to="/login"
-          color="primary"
-          size="x-large"
-          prepend-icon="mdi-login"
-        >
-          Entrar no painel
-        </v-btn>
+        <v-form ref="form" class="clinic-address" @submit.prevent="goToClinic">
+          <p class="text-body-1 font-weight-medium mb-2">
+            Qual é o endereço da sua clínica?
+          </p>
+          <v-text-field
+            v-model="slug"
+            label="Endereço da clínica"
+            placeholder="minha-clinica"
+            :suffix="clinicHostSuffix"
+            prepend-inner-icon="mdi-web"
+            autocapitalize="none"
+            autocomplete="off"
+            spellcheck="false"
+            :error-messages="slugError"
+            :rules="[formRules.required('Informe o endereço da clínica'), value => formRules.slug(String(value).toLowerCase())]"
+            @update:model-value="slugError = ''"
+          />
+          <v-btn
+            type="submit"
+            color="primary"
+            size="x-large"
+            prepend-icon="mdi-login"
+            :loading="searching"
+          >
+            Entrar no painel
+          </v-btn>
+        </v-form>
       </v-col>
     </v-row>
 
@@ -40,3 +89,15 @@ const features = [
     </v-row>
   </v-container>
 </template>
+
+<style scoped>
+.clinic-address {
+  max-width: 480px;
+}
+
+@media (max-width: 959px) {
+  .clinic-address {
+    margin-inline: auto;
+  }
+}
+</style>

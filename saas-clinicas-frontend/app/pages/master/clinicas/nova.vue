@@ -14,9 +14,11 @@ const STEPS = [
   { title: 'Revisão', value: 4 },
 ]
 const LAST_STEP = STEPS.length
+const CLINIC_STEP = 1
 const ADMIN_STEP = 3
 
 const api = useApi()
+const { clinicUrl } = useAreaUrls()
 const { smAndDown } = useDisplay()
 
 const step = ref(1)
@@ -24,6 +26,7 @@ const form = reactive(createEmptyClinicForm())
 const submitting = ref(false)
 const created = ref<{ response: ClinicResponse, temporaryPassword: string } | null>(null)
 const emailError = ref<string>()
+const slugError = ref<string>()
 const snackbar = reactive({ show: false, text: '' })
 
 const clinicStep = ref<StepRef>()
@@ -57,9 +60,14 @@ async function submit() {
     created.value = { response, temporaryPassword: form.admin.temporaryPassword }
   }
   catch (error) {
-    if (errorCodeOf(error) === 'EMAIL_IN_USE') {
+    const code = errorCodeOf(error)
+    if (code === 'EMAIL_IN_USE') {
       emailError.value = errorMessage(error)
       step.value = ADMIN_STEP
+    }
+    if (code === 'SLUG_TAKEN' || code === 'SLUG_RESERVED') {
+      slugError.value = errorMessage(error)
+      step.value = CLINIC_STEP
     }
     snackbar.text = errorMessage(error)
     snackbar.show = true
@@ -73,7 +81,7 @@ async function copyCredentials() {
   if (!created.value) return
   const { response, temporaryPassword } = created.value
   await navigator.clipboard.writeText(
-    `Acesse ${window.location.origin}/login\nE-mail: ${response.admin.email}\nSenha provisória: ${temporaryPassword}`,
+    `Acesse ${clinicUrl(response.clinic.slug)}/login\nE-mail: ${response.admin.email}\nSenha provisória: ${temporaryPassword}`,
   )
 }
 </script>
@@ -90,6 +98,7 @@ async function copyCredentials() {
           provisória precisa ser trocada no primeiro acesso.
         </p>
         <v-sheet color="surface-variant" rounded="lg" class="pa-4 mb-6 text-start font-monospace mx-auto" max-width="420">
+          <div>Endereço: {{ clinicUrl(created.response.clinic.slug) }}</div>
           <div>E-mail: {{ created.response.admin.email }}</div>
           <div>Senha provisória: <strong>{{ created.temporaryPassword }}</strong></div>
         </v-sheet>
@@ -123,7 +132,12 @@ async function copyCredentials() {
         rounded="xl"
       >
         <template #[`item.1`]>
-          <ClinicFormClinicStep ref="clinicStep" v-model="form.clinic" />
+          <ClinicFormClinicStep
+            ref="clinicStep"
+            v-model="form.clinic"
+            :slug-error="slugError"
+            @clear-slug-error="slugError = undefined"
+          />
         </template>
         <template #[`item.2`]>
           <ClinicFormHoursStep ref="hoursStep" v-model="form.businessHours" />

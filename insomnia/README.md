@@ -19,6 +19,7 @@ Edite em **Manage Environments**:
 | `baseUrl`        | `http://localhost:3001/api`                          |
 | `masterLogin` / `masterPassword` | login do master (seed: `admin` / `admin`) |
 | `clinicEmail` / `clinicPassword` | login do usuário de clínica          |
+| `clinicSlug`                     | endereço da clínica; vai no header `X-Clinic-Slug` do login (seed: `demo`) |
 | `newPassword`    | nova senha usada em "Trocar senha"                   |
 | `clinicId`       | id da clínica usado nas rotas do master              |
 | `clinicName`     | nome exato da clínica (pedido de exclusão)           |
@@ -42,8 +43,8 @@ pasta certa antes das demais chamadas.
 
 1. **Master → Autenticação → Login** (`admin` / `admin`).
 2. **Master → Clínicas → Criar clínica**. O admin é criado com
-   `clinicEmail` / `clinicPassword` do ambiente. Copie o `clinic.id` da
-   resposta para `clinicId`.
+   `clinicEmail` / `clinicPassword` do ambiente e a clínica, com o
+   `clinicSlug`. Copie o `clinic.id` da resposta para `clinicId`.
 3. **Clínica → Autenticação → Login** com o admin criado. A resposta traz
    `mustChangePassword: true`.
 4. **Clínica → Autenticação → Trocar senha**. Depois, atualize

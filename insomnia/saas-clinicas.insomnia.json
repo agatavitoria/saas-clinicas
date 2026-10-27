@@ -22,6 +22,7 @@
         "masterLogin": "admin",
         "masterPassword": "admin",
         "clinicEmail": "admin@clinica.com",
+        "clinicSlug": "clinica-exemplo",
         "clinicPassword": "troque-pela-senha",
         "newPassword": "nova-senha-123",
         "clinicId": "cole-aqui-o-id-da-clinica",
@@ -36,6 +37,7 @@
           "masterLogin",
           "masterPassword",
           "clinicEmail",
+          "clinicSlug",
           "clinicPassword",
           "newPassword",
           "clinicId",
@@ -95,6 +97,51 @@
       "body": {}
     },
     {
+      "_id": "fld_public",
+      "_type": "request_group",
+      "parentId": "wrk_saas_clinicas",
+      "name": "Público",
+      "description": "Rotas sem sessão, usadas pela tela de login do subdomínio.",
+      "environment": {},
+      "metaSortKey": -90
+    },
+    {
+      "_id": "req_public_001",
+      "_type": "request",
+      "parentId": "fld_public",
+      "name": "Tema da clínica",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/public/clinics/{{ _.clinicSlug }}",
+      "description": "Nome, cor e data do logo para a tela de login. Clínica inativa ou inexistente: 404 CLINIC_NOT_FOUND.",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -100,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global"
+    },
+    {
+      "_id": "req_public_002",
+      "_type": "request",
+      "parentId": "fld_public",
+      "name": "Logo da clínica",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/public/clinics/{{ _.clinicSlug }}/logo",
+      "description": "Imagem do logo; 404 se a clínica não tiver logo.",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -90,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global"
+    },
+    {
       "_id": "fld_clinic",
       "_type": "request_group",
       "parentId": "wrk_saas_clinicas",
@@ -119,11 +166,15 @@
       "name": "Login",
       "method": "POST",
       "url": "{{ _.baseUrl }}/auth/login",
-      "description": "Grava os cookies `access_token` e `refresh_token`. Com senha provisória, as demais rotas respondem 403 PASSWORD_CHANGE_REQUIRED até a troca.",
+      "description": "Grava os cookies `access_token` e `refresh_token`. Com senha provisória, as demais rotas respondem 403 PASSWORD_CHANGE_REQUIRED até a troca. O `X-Clinic-Slug` faz o papel do subdomínio: pelo navegador, quem envia é o proxy do Nuxt; o login só aceita usuários dessa clínica.",
       "headers": [
         {
           "name": "Content-Type",
           "value": "application/json"
+        },
+        {
+          "name": "X-Clinic-Slug",
+          "value": "{{ _.clinicSlug }}"
         }
       ],
       "parameters": [],
@@ -684,7 +735,7 @@
       "name": "Criar clínica",
       "method": "POST",
       "url": "{{ _.baseUrl }}/platform/clinics",
-      "description": "Copie o `clinic.id` da resposta para `clinicId` no ambiente. weekday: 0 = domingo ... 6 = sábado.",
+      "description": "Copie o `clinic.id` da resposta para `clinicId` no ambiente. weekday: 0 = domingo ... 6 = sábado. O `slug` é o subdomínio da clínica e não pode ser alterado depois.",
       "headers": [
         {
           "name": "Content-Type",
@@ -701,7 +752,7 @@
       "settingFollowRedirects": "global",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"clinic\": {\n    \"name\": \"Clínica Exemplo\",\n    \"email\": \"contato@clinica.com\",\n    \"phone\": \"11999998888\",\n    \"document\": \"11222333000181\"\n  },\n  \"businessHours\": [\n    {\n      \"weekday\": 1,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 2,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 3,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 4,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 5,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    }\n  ],\n  \"admin\": {\n    \"name\": \"Ana Souza\",\n    \"email\": \"{{ _.clinicEmail }}\",\n    \"temporaryPassword\": \"{{ _.clinicPassword }}\"\n  }\n}"
+        "text": "{\n  \"clinic\": {\n    \"name\": \"Clínica Exemplo\",\n    \"slug\": \"{{ _.clinicSlug }}\",\n    \"email\": \"contato@clinica.com\",\n    \"phone\": \"11999998888\",\n    \"document\": \"11222333000181\"\n  },\n  \"businessHours\": [\n    {\n      \"weekday\": 1,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 2,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 3,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 4,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 5,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    }\n  ],\n  \"admin\": {\n    \"name\": \"Ana Souza\",\n    \"email\": \"{{ _.clinicEmail }}\",\n    \"temporaryPassword\": \"{{ _.clinicPassword }}\"\n  }\n}"
       }
     },
     {

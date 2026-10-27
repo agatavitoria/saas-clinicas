@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { ClsService } from 'nestjs-cls';
 import type { AuditClsStore } from '../audit/audit-context.js';
+import { CLINIC_SLUG_HEADER } from '../clinics/slug.js';
 import { forbidden } from '../common/api-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthCookiesService } from './auth-cookies.service.js';
@@ -104,10 +105,18 @@ export class JwtAuthGuard implements CanActivate {
         roles: true,
         active: true,
         mustChangePassword: true,
-        clinic: { select: { active: true, ...DELETION_FIELDS_SELECT } },
+        clinic: {
+          select: { active: true, slug: true, ...DELETION_FIELDS_SELECT },
+        },
       },
     });
     if (!user?.active || !user.clinic.active) throw new UnauthorizedException();
+    // Pelo navegador, os cookies já ficam presos ao subdomínio; isto barra um
+    // token de uma clínica apresentado no endereço de outra
+    const clinicSlug = request.headers[CLINIC_SLUG_HEADER];
+    if (clinicSlug !== undefined && clinicSlug !== user.clinic.slug) {
+      throw new UnauthorizedException();
+    }
 
     this.cls.set('actor', {
       type: 'USER',

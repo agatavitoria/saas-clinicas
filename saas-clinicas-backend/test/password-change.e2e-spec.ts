@@ -10,6 +10,7 @@ import {
   resetDatabase,
   setCookies,
   signUpClinic,
+  postLogin,
 } from './utils.js';
 
 describe('Mandatory password change (e2e)', () => {
@@ -29,10 +30,10 @@ describe('Mandatory password change (e2e)', () => {
       where: { id: clinic.adminId },
       data: { mustChangePassword: true },
     });
-    const response = await http(app)
-      .post('/api/auth/login')
-      .send({ email: clinic.adminEmail, password: PASSWORD })
-      .expect(200);
+    const response = await postLogin(app, {
+      email: clinic.adminEmail,
+      password: PASSWORD,
+    }).expect(200);
     expect(response.body.user.mustChangePassword).toBe(true);
     session = setCookies(response);
   });
@@ -95,9 +96,9 @@ describe('Mandatory password change (e2e)', () => {
       .set('Cookie', `refresh_token=${oldRefresh}`)
       .expect(401);
 
-    await http(app)
-      .post('/api/auth/login')
-      .send({ email: 'admin@alfa.com', password: 'nova-senha-123' })
-      .expect(200);
+    await postLogin(app, {
+      email: 'admin@alfa.com',
+      password: 'nova-senha-123',
+    }).expect(200);
   });
 });

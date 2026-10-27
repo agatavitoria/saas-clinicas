@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
+import { CLINIC_SLUG_HEADER } from '../src/clinics/slug.js';
 
 // Precisa ser definido antes de o AppModule (e o ConfigModule) ser carregado
 process.env.LOGIN_RATE_LIMIT = '3';
@@ -21,6 +22,7 @@ describe('Login rate limit (e2e)', () => {
     const attempt = () =>
       request(app.getHttpServer())
         .post('/api/auth/login')
+        .set(CLINIC_SLUG_HEADER, 'teste')
         .send({ email: 'ninguem@teste.com', password: 'qualquer-coisa' });
 
     for (let i = 0; i < 3; i++) await attempt().expect(401);

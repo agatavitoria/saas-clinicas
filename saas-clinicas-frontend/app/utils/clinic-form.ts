@@ -18,7 +18,7 @@ export function weekdayLabel(weekday: number): string {
 /** Seg–sex abertos das 08:00 às 18:00; sábado sugerido até 12:00. */
 export function createEmptyClinicForm(): ClinicForm {
   return {
-    clinic: { name: '', email: '', phone: '', document: '' },
+    clinic: { name: '', slug: '', email: '', phone: '', document: '' },
     businessHours: WEEKDAYS.map<BusinessHourForm>(({ value }) => ({
       weekday: value,
       open: value >= 1 && value <= 5,
@@ -35,6 +35,7 @@ export function toCreateClinicPayload(form: ClinicForm): CreateClinicPayload {
   return {
     clinic: {
       name: form.clinic.name.trim(),
+      slug: form.clinic.slug.trim(),
       email: form.clinic.email.trim(),
       phone: onlyDigits(form.clinic.phone),
       ...(document ? { document } : {}),

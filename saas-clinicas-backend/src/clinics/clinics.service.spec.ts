@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as argon2 from 'argon2';
 import { Prisma } from '../generated/prisma/client.js';
@@ -10,6 +10,7 @@ import type { CreateClinicDto } from './dto/create-clinic.dto.js';
 const dto: CreateClinicDto = {
   clinic: {
     name: 'Clínica Sorriso',
+    slug: 'sorriso',
     email: 'contato@sorriso.com',
     phone: '11999998888',
     document: '11222333000181',
@@ -64,6 +65,7 @@ describe('ClinicsService', () => {
 
     expect(create).toHaveBeenCalledTimes(1);
     const { data } = create.mock.calls[0][0];
+    expect(data.slug).toBe('sorriso');
     expect(data.businessHours.create).toEqual(dto.businessHours);
     expect(data.users.create).toMatchObject({
       name: 'Ana Souza',
@@ -133,15 +135,43 @@ describe('ClinicsService', () => {
     expect(select.users.select).not.toHaveProperty('passwordHash');
   });
 
-  it('throws ConflictException when the email is already in use', async () => {
-    create.mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-        code: 'P2002',
-        clientVersion: Prisma.prismaVersion.client,
-      }),
-    );
+  const uniqueViolation = (fields: string[]) =>
+    new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+      code: 'P2002',
+      clientVersion: Prisma.prismaVersion.client,
+      meta: { target: fields },
+    });
 
-    await expect(service.create(dto)).rejects.toBeInstanceOf(ConflictException);
+  it('reports EMAIL_IN_USE when the email is already in use', async () => {
+    create.mockRejectedValue(uniqueViolation(['email']));
+
+    const error = await service.create(dto).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ConflictException);
+    expect((error as ConflictException).getResponse()).toMatchObject({
+      code: 'EMAIL_IN_USE',
+    });
+  });
+
+  it('reports SLUG_TAKEN when another clinic has the same slug', async () => {
+    create.mockRejectedValue(uniqueViolation(['slug']));
+
+    const error = await service.create(dto).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ConflictException);
+    expect((error as ConflictException).getResponse()).toMatchObject({
+      code: 'SLUG_TAKEN',
+    });
+  });
+
+  it('rejects a reserved slug before writing', async () => {
+    const reserved = structuredClone(dto);
+    reserved.clinic.slug = 'admin';
+
+    const error = await service.create(reserved).catch((e: unknown) => e);
+
+    expect((error as BadRequestException).getResponse()).toMatchObject({
+      code: 'SLUG_RESERVED',
+    });
+    expect(create).not.toHaveBeenCalled();
   });
 
   it('rethrows unexpected errors', async () => {

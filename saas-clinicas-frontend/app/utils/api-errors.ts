@@ -24,6 +24,9 @@ const MESSAGES: Record<string, string> = {
   LOW_COLOR_CONTRAST: 'Essa cor é clara demais para textos em branco. Escolha uma cor mais escura.',
   INVALID_LOGO: 'O logo precisa ser uma imagem PNG, JPG ou WebP.',
   LOGO_TOO_LARGE: 'O logo pode ter no máximo 512 KB.',
+  SLUG_RESERVED: 'Este endereço é reservado pelo sistema. Escolha outro.',
+  SLUG_TAKEN: 'Este endereço já é usado por outra clínica.',
+  CLINIC_NOT_FOUND: 'Não encontramos uma clínica com este endereço.',
 }
 
 /** Mensagem em português para exibir ao usuário. */

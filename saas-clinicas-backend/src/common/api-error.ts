@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   HttpException,
+  NotFoundException,
 } from '@nestjs/common';
 
 /**
@@ -28,7 +29,10 @@ export type ApiErrorCode =
   | 'CANNOT_REMOVE_OWN_ADMIN'
   | 'LOW_COLOR_CONTRAST'
   | 'INVALID_LOGO'
-  | 'LOGO_TOO_LARGE';
+  | 'LOGO_TOO_LARGE'
+  | 'SLUG_RESERVED'
+  | 'SLUG_TAKEN'
+  | 'CLINIC_NOT_FOUND';
 
 type ExceptionClass = new (body: object) => HttpException;
 
@@ -49,3 +53,6 @@ export const conflict = (code: ApiErrorCode, message: string) =>
 
 export const badRequest = (code: ApiErrorCode, message: string) =>
   apiError(BadRequestException, 400, code, message);
+
+export const notFound = (code: ApiErrorCode, message: string) =>
+  apiError(NotFoundException, 404, code, message);

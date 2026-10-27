@@ -4,6 +4,27 @@ import type { ClinicForm } from '~/types/clinic'
 
 const clinic = defineModel<ClinicForm['clinic']>({ required: true })
 
+defineProps<{
+  /** Erro vindo do servidor (ex.: endereço já usado). */
+  slugError?: string
+}>()
+
+const emit = defineEmits<{ 'clear-slug-error': [] }>()
+
+const { clinicHostSuffix } = useAreaUrls()
+
+// O endereço acompanha o nome até ser editado à mão
+const slugEdited = ref(clinic.value.slug !== '' && clinic.value.slug !== slugify(clinic.value.name))
+watch(() => clinic.value.name, (name) => {
+  if (!slugEdited.value) clinic.value.slug = slugify(name)
+})
+
+function onSlugInput(value: string) {
+  slugEdited.value = value !== ''
+  clinic.value.slug = value.toLowerCase()
+  emit('clear-slug-error')
+}
+
 const form = ref<VForm>()
 
 defineExpose({
@@ -27,6 +48,23 @@ defineExpose({
           autocomplete="organization"
           autofocus
           :rules="[formRules.required(), formRules.minLength(2)]"
+        />
+      </v-col>
+
+      <v-col cols="12">
+        <v-text-field
+          :model-value="clinic.slug"
+          label="Endereço de acesso"
+          prepend-inner-icon="mdi-web"
+          :suffix="clinicHostSuffix"
+          autocapitalize="none"
+          autocomplete="off"
+          spellcheck="false"
+          hint="A equipe entra por este endereço. Não pode ser alterado depois."
+          persistent-hint
+          :error-messages="slugError"
+          :rules="[formRules.required(), formRules.slug]"
+          @update:model-value="onSlugInput"
         />
       </v-col>
 

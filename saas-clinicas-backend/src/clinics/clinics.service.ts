@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { AuditService } from '../audit/audit.service.js';
 import { USER_PROFILE_SELECT } from '../auth/auth-user.js';
-import { conflict } from '../common/api-error.js';
+import { badRequest, conflict } from '../common/api-error.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { UserRole } from '../generated/prisma/enums.js';
 import {
@@ -17,12 +17,35 @@ import type {
   ClinicSummary,
 } from './dto/clinic-response.dto.js';
 import type { CreateClinicDto } from './dto/create-clinic.dto.js';
+import { isReservedSlug } from './slug.js';
 
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
+
+/** Violação de unicidade, opcionalmente restrita a um campo. */
+function isUniqueViolation(error: unknown, field?: string): boolean {
+  if (
+    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+    error.code !== UNIQUE_CONSTRAINT_VIOLATION
+  ) {
+    return false;
+  }
+  // O formato do meta varia com o driver: basta o campo aparecer nele
+  return !field || JSON.stringify(error.meta ?? {}).includes(field);
+}
+
+function assertSlugAllowed(slug: string): void {
+  if (isReservedSlug(slug)) {
+    throw badRequest('SLUG_RESERVED', 'This address is reserved');
+  }
+}
+
+const slugTaken = () =>
+  conflict('SLUG_TAKEN', 'This address is already used by another clinic');
 
 export const CLINIC_DETAILS_SELECT = {
   id: true,
   name: true,
+  slug: true,
   email: true,
   phone: true,
   document: true,
@@ -55,6 +78,7 @@ export class ClinicsService {
    * senha provisória e precisa trocá-la no primeiro login.
    */
   async create(dto: CreateClinicDto): Promise<ClinicResponse> {
+    assertSlugAllowed(dto.clinic.slug);
     const passwordHash = await argon2.hash(dto.admin.temporaryPassword);
 
     try {
@@ -62,6 +86,7 @@ export class ClinicsService {
         const { users, ...clinic } = await tx.clinic.create({
           data: {
             name: dto.clinic.name,
+            slug: dto.clinic.slug,
             email: dto.clinic.email,
             phone: dto.clinic.phone,
             document: dto.clinic.document ?? null,
@@ -104,11 +129,9 @@ export class ClinicsService {
         return { clinic: withDeletionInfo(clinic), admin };
       });
     } catch (error) {
-      // A única restrição única nesta escrita é o e-mail do usuário.
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === UNIQUE_CONSTRAINT_VIOLATION
-      ) {
+      // As restrições únicas desta escrita: o slug da clínica e o e-mail do admin
+      if (isUniqueViolation(error, 'slug')) throw slugTaken();
+      if (isUniqueViolation(error)) {
         throw conflict('EMAIL_IN_USE', 'Email already in use');
       }
       throw error;
@@ -129,6 +152,7 @@ export class ClinicsService {
       select: {
         id: true,
         name: true,
+        slug: true,
         email: true,
         phone: true,
         active: true,

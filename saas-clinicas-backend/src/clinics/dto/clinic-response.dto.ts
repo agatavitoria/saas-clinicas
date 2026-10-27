@@ -17,6 +17,8 @@ export interface ClinicBrandingInfo {
 export interface ClinicDetails {
   id: string;
   name: string;
+  /** Subdomínio pelo qual a equipe acessa o sistema. */
+  slug: string;
   email: string;
   phone: string;
   document: string | null;
@@ -30,6 +32,7 @@ export interface ClinicDetails {
 export interface ClinicSummary {
   id: string;
   name: string;
+  slug: string;
   email: string;
   phone: string;
   active: boolean;
@@ -43,4 +46,12 @@ export interface ClinicSummary {
 export interface ClinicResponse {
   clinic: ClinicDetails;
   admin: UserProfile;
+}
+
+/** Tema da tela de login, público: só o que a página precisa exibir. */
+export interface PublicClinicTheme {
+  name: string;
+  slug: string;
+  primaryColor: string | null;
+  logoUpdatedAt: Date | null;
 }

@@ -19,6 +19,8 @@ enum UserRole {
 model Clinic {
   id                    String    @id @default(uuid()) @db.Uuid
   name                  String
+  /// Subdomínio da clínica (ex.: "sorriso" em sorriso.dominio.com). Definido na criação, não muda
+  slug                  String    @unique
   email                 String
   phone                 String
   document              String?

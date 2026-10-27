@@ -15,6 +15,7 @@ import {
   setCookies,
   signInPlatformAdmin,
   signUpClinic,
+  postLogin,
 } from './utils.js';
 
 describe('Platform admin (e2e)', () => {
@@ -244,10 +245,10 @@ describe('Platform admin (e2e)', () => {
         .set('Cookie', `refresh_token=${cookieValue(cookies, 'refresh_token')}`)
         .expect(401);
 
-      const loginResponse = await http(app)
-        .post('/api/auth/login')
-        .send({ email: adminEmail, password: PASSWORD })
-        .expect(403);
+      const loginResponse = await postLogin(app, {
+        email: adminEmail,
+        password: PASSWORD,
+      }).expect(403);
       expect(loginResponse.body.code).toBe('CLINIC_INACTIVE');
 
       await asMaster

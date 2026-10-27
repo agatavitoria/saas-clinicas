@@ -5,6 +5,7 @@ import { CreateClinicDto } from './create-clinic.dto.js';
 const validPayload = () => ({
   clinic: {
     name: '  Clínica Sorriso  ',
+    slug: ' Sorriso ',
     email: ' Contato@Sorriso.COM ',
     phone: '(11) 99999-8888',
     document: '11.222.333/0001-81',
@@ -44,6 +45,7 @@ describe('CreateClinicDto', () => {
 
     expect(errors).toHaveLength(0);
     expect(dto.clinic.name).toBe('Clínica Sorriso');
+    expect(dto.clinic.slug).toBe('sorriso');
     expect(dto.clinic.email).toBe('contato@sorriso.com');
     expect(dto.clinic.phone).toBe('11999998888');
     expect(dto.clinic.document).toBe('11222333000181');
@@ -63,6 +65,16 @@ describe('CreateClinicDto', () => {
 
     expect(errorPaths(payload)).toEqual(['clinic.document']);
   });
+
+  it.each(['ab', 'clínica', 'sorriso-', 'sor riso'])(
+    'rejects the slug %j',
+    (slug) => {
+      const payload = validPayload();
+      payload.clinic.slug = slug;
+
+      expect(errorPaths(payload)).toEqual(['clinic.slug']);
+    },
+  );
 
   it('rejects a phone without area code', () => {
     const payload = validPayload();

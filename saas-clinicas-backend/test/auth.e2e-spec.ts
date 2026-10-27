@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
+import { CLINIC_SLUG_HEADER } from '../src/clinics/slug.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import {
   asCookieHeader,
@@ -32,7 +33,10 @@ describe('Auth (e2e)', () => {
   const http = () => request(app.getHttpServer());
 
   const login = (email = 'admin@sorriso.com', password = PASSWORD) =>
-    http().post('/api/auth/login').send({ email, password });
+    http()
+      .post('/api/auth/login')
+      .set(CLINIC_SLUG_HEADER, 'sorriso')
+      .send({ email, password });
 
   /** Envia apenas o refresh token, como o navegador faz em /api/auth. */
   const refresh = (refreshToken: string) =>

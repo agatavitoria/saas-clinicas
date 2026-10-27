@@ -52,7 +52,7 @@ describe('AuthService', () => {
     ...profile,
     passwordHash,
     active: true,
-    clinic: { active: true },
+    clinic: { active: true, slug: 'sorriso' },
     ...overrides,
   });
 
@@ -82,7 +82,11 @@ describe('AuthService', () => {
     it('creates a session for valid credentials', async () => {
       prisma.user.findUnique.mockResolvedValue(storedUser());
 
-      const session = await service.login('ana@sorriso.com', 'senha-segura');
+      const session = await service.login(
+        'ana@sorriso.com',
+        'senha-segura',
+        'sorriso',
+      );
 
       expect(session.user).toEqual(profile);
       expect(session.accessToken).toBe('signed-jwt');
@@ -110,7 +114,7 @@ describe('AuthService', () => {
       prisma.user.findUnique.mockResolvedValue(storedUser());
 
       await expect(
-        service.login('ana@sorriso.com', 'outra-senha'),
+        service.login('ana@sorriso.com', 'outra-senha', 'sorriso'),
       ).rejects.toBeInstanceOf(UnauthorizedException);
       expect(tenantDb.refreshToken.create).not.toHaveBeenCalled();
     });
@@ -119,28 +123,41 @@ describe('AuthService', () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.login('ninguem@sorriso.com', 'senha-segura'),
+        service.login('ninguem@sorriso.com', 'senha-segura', 'sorriso'),
       ).rejects.toThrow('Invalid email or password');
+    });
+
+    it('rejects a user of another clinic as if the password were wrong', async () => {
+      prisma.user.findUnique.mockResolvedValue(storedUser());
+
+      await expect(
+        service.login('ana@sorriso.com', 'senha-segura', 'outra-clinica'),
+      ).rejects.toThrow('Invalid email or password');
+      expect(tenantDb.refreshToken.create).not.toHaveBeenCalled();
     });
 
     it('reports an inactive user only after a correct password', async () => {
       prisma.user.findUnique.mockResolvedValue(storedUser({ active: false }));
 
       expect(
-        await errorCode(service.login('ana@sorriso.com', 'senha-segura')),
+        await errorCode(
+          service.login('ana@sorriso.com', 'senha-segura', 'sorriso'),
+        ),
       ).toBe('USER_INACTIVE');
       await expect(
-        service.login('ana@sorriso.com', 'errada-123'),
+        service.login('ana@sorriso.com', 'errada-123', 'sorriso'),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('reports an inactive clinic', async () => {
       prisma.user.findUnique.mockResolvedValue(
-        storedUser({ clinic: { active: false } }),
+        storedUser({ clinic: { active: false, slug: 'sorriso' } }),
       );
 
       expect(
-        await errorCode(service.login('ana@sorriso.com', 'senha-segura')),
+        await errorCode(
+          service.login('ana@sorriso.com', 'senha-segura', 'sorriso'),
+        ),
       ).toBe('CLINIC_INACTIVE');
     });
   });

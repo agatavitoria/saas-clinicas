@@ -38,6 +38,10 @@ export const formRules = {
 
   time: (value: unknown) => TIME_PATTERN.test(asText(value)) || 'Horário inválido',
 
+  slug: (value: unknown) =>
+    isValidSlug(asText(value).trim())
+    || `Use de ${SLUG_MIN_LENGTH} a ${SLUG_MAX_LENGTH} letras minúsculas, números ou hífens (sem hífen nas pontas)`,
+
   sameAs:
     (other: () => string, message: string): ValidationRule =>
     value => asText(value) === other() || message,

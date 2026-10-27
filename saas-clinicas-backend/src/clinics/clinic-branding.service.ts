@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service.js';
-import { badRequest } from '../common/api-error.js';
+import { badRequest, notFound } from '../common/api-error.js';
 import { hasAccessibleContrast, MIN_CONTRAST_RATIO } from '../common/color.js';
 import {
   PrismaService,
@@ -13,7 +13,11 @@ import {
   MAX_LOGO_BYTES,
 } from './branding.js';
 import { clinicTarget } from './clinics.service.js';
-import type { ClinicBrandingInfo } from './dto/clinic-response.dto.js';
+import type {
+  ClinicBrandingInfo,
+  PublicClinicTheme,
+} from './dto/clinic-response.dto.js';
+import { isValidSlug } from './slug.js';
 
 export interface ClinicLogo {
   bytes: Uint8Array;
@@ -119,6 +123,47 @@ export class ClinicBrandingService {
       throw new NotFoundException('Logo not found');
     }
     return { bytes: branding.logo, mimeType: branding.logoMimeType };
+  }
+
+  /**
+   * Tema da tela de login, buscado pelo subdomínio antes de haver sessão.
+   * Clínica inativa ou inexistente dá o mesmo 404, sem diferenciar.
+   */
+  async getPublicTheme(slug: string): Promise<PublicClinicTheme> {
+    const clinic = await this.findActiveBySlug(slug);
+    return {
+      name: clinic.name,
+      slug: clinic.slug,
+      ...(clinic.branding ?? DEFAULT_BRANDING),
+    };
+  }
+
+  async getPublicLogo(slug: string): Promise<ClinicLogo> {
+    const clinic = await this.findActiveBySlug(slug);
+    return this.getLogo(clinic.id);
+  }
+
+  /**
+   * Busca sem tenant: o slug é justamente o que identifica a clínica. Só
+   * devolve o que a tela de login pública pode mostrar.
+   */
+  private async findActiveBySlug(slug: string) {
+    const clinic = isValidSlug(slug)
+      ? await this.prisma.clinic.findUnique({
+          where: { slug },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            active: true,
+            branding: { select: CLINIC_BRANDING_SELECT },
+          },
+        })
+      : null;
+    if (!clinic?.active) {
+      throw notFound('CLINIC_NOT_FOUND', 'Clinic not found');
+    }
+    return clinic;
   }
 
   /** Clínica da transação (o RLS já restringe ao tenant). */

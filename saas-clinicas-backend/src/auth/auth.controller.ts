@@ -1,7 +1,9 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Post,
@@ -11,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
+import { CLINIC_SLUG_HEADER } from '../clinics/slug.js';
 import { AuthCookiesService } from './auth-cookies.service.js';
 import type { AuthUser, UserProfile } from './auth-user.js';
 import { TENANT_COOKIES } from './auth.constants.js';
@@ -35,9 +38,18 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() dto: LoginDto,
+    @Headers(CLINIC_SLUG_HEADER) clinicSlug: string | undefined,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ user: UserProfile }> {
-    const session = await this.authService.login(dto.email, dto.password);
+    // O proxy do Nuxt preenche o header a partir do subdomínio acessado
+    if (!clinicSlug) {
+      throw new BadRequestException(`Missing ${CLINIC_SLUG_HEADER} header`);
+    }
+    const session = await this.authService.login(
+      dto.email,
+      dto.password,
+      clinicSlug,
+    );
     this.cookies.set(res, TENANT_COOKIES, session);
     return { user: session.user };
   }

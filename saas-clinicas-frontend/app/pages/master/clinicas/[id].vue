@@ -5,6 +5,7 @@ definePageMeta({ layout: 'master', middleware: 'platform-auth' })
 
 const route = useRoute()
 const api = useApi()
+const { clinicUrl } = useAreaUrls()
 const clinicId = computed(() => String(route.params.id))
 const basePath = computed(() => `/platform/clinics/${clinicId.value}`)
 
@@ -223,6 +224,15 @@ async function exportData() {
               <v-col cols="12" md="6">
                 <v-card-item prepend-icon="mdi-card-account-details-outline" title="Contato" />
                 <v-list density="compact" class="pt-0">
+                  <v-list-item
+                    prepend-icon="mdi-web"
+                    :title="clinicUrl(clinic.slug)"
+                    subtitle="Endereço de acesso da equipe"
+                    :href="`${clinicUrl(clinic.slug)}/login`"
+                    target="_blank"
+                    rel="noopener"
+                    append-icon="mdi-open-in-new"
+                  />
                   <v-list-item prepend-icon="mdi-email-outline" :title="clinic.email" />
                   <v-list-item prepend-icon="mdi-phone-outline" :title="formatPhone(clinic.phone)" />
                   <v-list-item v-if="clinic.document" prepend-icon="mdi-file-document-outline" :title="formatTaxId(clinic.document)" />

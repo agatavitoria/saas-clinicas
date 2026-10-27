@@ -1,19 +1,12 @@
 <script setup lang="ts">
-import { useDisplay, useTheme } from 'vuetify'
+import { useDisplay } from 'vuetify'
 
 const { user, isAdmin, logout, refreshUser } = useAuth()
 const { clinic, refresh: refreshClinic } = useClinic()
 const { primaryColor, clinicLogoUrl } = useBranding()
 
-// Cor da clínica no tema. Roda já no setup (com o valor em cache), antes da
-// primeira renderização; fora do painel (login, master) volta a cor padrão
-const theme = useTheme()
-watchEffect(() => {
-  theme.themes.value.light!.colors.primary = primaryColor.value
-})
-onBeforeUnmount(() => {
-  theme.themes.value.light!.colors.primary = DEFAULT_PRIMARY_COLOR
-})
+// Cor da clínica no tema, começando pelo valor em cache
+useThemePrimaryColor(primaryColor)
 
 // Logo que não carrega (ex.: removido em outra aba) cai no ícone padrão
 const logoFailed = ref(false)

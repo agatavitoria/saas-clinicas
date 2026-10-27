@@ -23,6 +23,7 @@ import {
   OnlyDigits,
   Trim,
 } from '../../common/validation/decorators.js';
+import { IsSlug } from './slug.dto.js';
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -32,6 +33,10 @@ export class ClinicDataDto {
   @MinLength(2)
   @MaxLength(120)
   name: string;
+
+  /** Subdomínio da clínica; o front sugere a partir do nome. */
+  @IsSlug()
+  slug: string;
 
   @NormalizeEmail()
   @IsEmail()

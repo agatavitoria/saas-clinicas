@@ -11,8 +11,13 @@ agenda, e nunca enxerga dados de outra clínica.
 
 **Disponível**
 
-- **Admin master (plataforma)**, em `/master`:
-  - cria clínicas (dados, horário de funcionamento e administrador);
+- **Endereço por clínica:** cada clínica tem um subdomínio próprio
+  (`sorriso.dominio.com`), definido na criação e fixo depois. O login já
+  abre com o nome, a cor e o logo dela, e só aceita usuários daquela clínica.
+  O master fica em `admin.dominio.com`, e o domínio raiz só pergunta o
+  endereço da clínica.
+- **Admin master (plataforma)**, em `admin.<domínio>/master`:
+  - cria clínicas (dados, endereço, horário de funcionamento e administrador);
   - lista, ativa e inativa clínicas;
   - cadastra, inativa e redefine a senha dos usuários de qualquer clínica.
 - **Administrador da clínica**, em `/painel/equipe`:
@@ -45,7 +50,8 @@ agenda, e nunca enxerga dados de outra clínica.
   - nome da clínica;
   - cor principal escolhida numa paleta ou livre, com contraste mínimo de
     4,5:1 com o branco (WCAG AA);
-  - logo em PNG, JPG ou WebP, com até 512 KB, exibido no menu do painel.
+  - logo em PNG, JPG ou WebP, com até 512 KB, exibido no menu do painel e
+    na tela de login.
 
 **Planejado**
 
@@ -92,8 +98,8 @@ sistema guarda dados de saúde.
   - Métricas de uso por clínica e alertas.
   - Limite de requisições por clínica, para que uma não sobrecarregue as
     outras.
-- [ ] **Personalização por tenant.** Logo e cor principal já existem. Pendências:
-  - [ ] subdomínio por clínica, com o login já no tema dela;
+- [ ] **Personalização por tenant.** Logo, cor principal e subdomínio já
+  existem. Pendências:
   - [ ] preferências como fuso horário, duração padrão da consulta e textos
     de lembrete.
 
@@ -101,10 +107,10 @@ sistema guarda dados de saúde.
 
 | Quem                    | Onde entra        | O que pode fazer                                            |
 | ----------------------- | ----------------- | ----------------------------------------------------------- |
-| Admin master            | `/master/login`   | todas as clínicas e os usuários delas                       |
-| Administrador (`ADMIN`) | `/login`          | tudo na **própria** clínica: equipe, pacientes, prontuário, histórico e LGPD |
-| Recepção (`RECEPTION`)  | `/login`          | cadastra e edita pacientes; consulta o prontuário           |
-| Profissional (`PROFESSIONAL`) | `/login`    | consulta pacientes e registra atendimentos e adendos        |
+| Admin master            | `admin.<domínio>/master/login` | todas as clínicas e os usuários delas          |
+| Administrador (`ADMIN`) | `<slug>.<domínio>/login` | tudo na **própria** clínica: equipe, pacientes, prontuário, histórico e LGPD |
+| Recepção (`RECEPTION`)  | `<slug>.<domínio>/login` | cadastra e edita pacientes; consulta o prontuário    |
+| Profissional (`PROFESSIONAL`) | `<slug>.<domínio>/login` | consulta pacientes e registra atendimentos e adendos |
 
 Um usuário pode ter **vários papéis**, por exemplo administrador e
 profissional ao mesmo tempo, e as permissões somam. O admin define os papéis
@@ -158,11 +164,12 @@ saas-clinicas/
 │   └── test/                 # testes e2e
 ├── saas-clinicas-frontend/   # aplicação Nuxt (porta 3000)
 │   ├── server/api/           # proxy /api → backend
+│   ├── shared/utils/         # regras de host e slug (app e servidor)
 │   └── app/
 │       ├── components/       # formulário de clínica, usuários, histórico
 │       ├── composables/      # useApi (renova a sessão), useAuth, usePlatformAuth
 │       ├── layouts/          # público, painel da clínica e master
-│       ├── middleware/       # auth, admin, guest, platform-auth, platform-guest
+│       ├── middleware/       # area (global), auth, admin, guest, platform-auth, platform-guest
 │       ├── pages/            # /, /login, /trocar-senha, /painel/**, /master/**
 │       └── utils/            # máscaras, validações, horários, erros, ações do log
 ├── docker/                   # script de inicialização do Postgres
@@ -190,6 +197,34 @@ lembrar do filtro em cada consulta. Um id de outra clínica simplesmente não
 A única exceção são as rotas do admin master (`/api/platform/clinics/:id/...`),
 em que a clínica vem da URL. Elas só aceitam a sessão de plataforma e usam o
 mesmo `forTenant` com esse id.
+
+### Subdomínios
+
+Cada clínica tem um `slug` único (`sorriso` em `sorriso.dominio.com`). Ele é
+escolhido pelo master na criação (o formulário sugere a partir do nome), não
+muda depois e não pode ser um nome reservado (`admin`, `www`, `api`...).
+
+| Endereço              | Área    | Páginas                                   |
+| --------------------- | ------- | ----------------------------------------- |
+| `<domínio>`           | raiz    | `/`: campo para digitar o endereço da clínica |
+| `admin.<domínio>`     | master  | `/master/**`                              |
+| `<slug>.<domínio>`    | clínica | `/login`, `/painel/**`, `/trocar-senha`   |
+
+- Os cookies não têm `Domain`, então ficam presos ao subdomínio: a sessão
+  de uma clínica não chega ao endereço de outra, nem ao do master.
+- O proxy do Nuxt calcula a área pelo `Host`, recusa as rotas da API de outra
+  área (404) e envia ao backend o header `X-Clinic-Slug`. O valor enviado pelo
+  navegador é descartado.
+- O login exige o `X-Clinic-Slug` e só aceita usuários daquela clínica. Para
+  os demais, responde o mesmo `401` de senha errada.
+- Nas outras rotas, o guard confere que o token é da clínica do header,
+  quando ele vem. Sem o header (chamada direta ao backend), vale só o token.
+- A tela de login renderiza no servidor, já com o nome, a cor e o logo, a
+  partir de `GET /api/public/clinics/:slug`. Clínica inativa ou inexistente
+  responde `404 CLINIC_NOT_FOUND`, sem diferenciar.
+- O domínio vem de `NUXT_PUBLIC_BASE_DOMAIN` (padrão `localhost`). Em
+  desenvolvimento, `*.localhost` aponta para a própria máquina, sem precisar
+  mexer no `/etc/hosts`.
 
 ### Row-Level Security (segunda camada)
 
@@ -243,6 +278,7 @@ erDiagram
     clinics {
         uuid id PK "é o tenantId das demais tabelas"
         string name
+        string slug UK "subdomínio, fixo"
         string email
         string phone
         string document "CPF ou CNPJ, opcional"
@@ -558,11 +594,12 @@ regenera o client do Prisma e roda a seed.
 
 Não existe cadastro público: as clínicas são criadas pelo admin master. A
 seed de desenvolvimento (`make seed`, que o `make migrate` já roda) cria o
-master padrão:
+master padrão e uma clínica de exemplo:
 
-| Usuário | Senha   |
-| ------- | ------- |
-| `admin` | `admin` |
+| Onde                                | Usuário          | Senha      |
+| ----------------------------------- | ---------------- | ---------- |
+| http://admin.localhost:3000/master  | `admin`          | `admin`    |
+| http://demo.localhost:3000/login    | `admin@demo.com` | `demo1234` |
 
 > Essas credenciais são só para desenvolvimento. A seed se recusa a rodar com
 > `NODE_ENV=production` e não sobrescreve o admin se ele já existir. Fora do
@@ -585,10 +622,16 @@ make up
 
 Esse comando sobe o banco, o backend e o frontend juntos. Depois:
 
-1. Entre em http://localhost:3000/master/login com `admin` / `admin` e crie
-   uma clínica. Anote a senha provisória do administrador.
-2. Entre em http://localhost:3000/login com o administrador da clínica, troque
-   a senha e cadastre a equipe em **Equipe**.
+1. Entre em http://admin.localhost:3000/master/login com `admin` / `admin` e
+   crie uma clínica. Anote o endereço e a senha provisória do administrador.
+2. Entre no endereço da clínica (por exemplo,
+   http://sorriso.localhost:3000/login) com o administrador, troque a senha e
+   cadastre a equipe em **Equipe**. A clínica `demo` da seed já está pronta
+   em http://demo.localhost:3000.
+
+> `*.localhost` funciona direto no Chrome, no Firefox e no `curl`. Se o seu
+> navegador não resolver, acrescente `127.0.0.1 demo.localhost admin.localhost`
+> ao `/etc/hosts`.
 
 A API responde em http://localhost:3001/api (`GET /api/health` para checar).
 Para subir só um dos lados, use `make up back` ou `make up front`. `Ctrl+C`
@@ -675,7 +718,9 @@ que o frontend traduz para uma mensagem em português.
 | Método | Rota                              | Acesso       | Descrição                                   |
 | ------ | --------------------------------- | ------------ | ------------------------------------------- |
 | GET    | `/api/health`                     | pública      | checagem de saúde                           |
-| POST   | `/api/auth/login`                 | pública      | login (`{ email, password }`)               |
+| GET    | `/api/public/clinics/:slug`       | pública      | nome, cor e `logoUpdatedAt` para o login    |
+| GET    | `/api/public/clinics/:slug/logo`  | pública      | imagem do logo para o login                 |
+| POST   | `/api/auth/login`                 | pública      | login (`{ email, password }` + header `X-Clinic-Slug`) |
 | POST   | `/api/auth/refresh`               | pública      | renova a sessão a partir do `refresh_token` |
 | POST   | `/api/auth/logout`                | pública      | encerra a sessão e limpa os cookies         |
 | GET    | `/api/auth/me`                    | logado       | usuário logado, com `mustChangePassword` e `branding` |
@@ -744,6 +789,7 @@ Cria a clínica, os horários de funcionamento e o usuário administrador numa
 {
   "clinic": {
     "name": "Clínica Sorriso",
+    "slug": "sorriso",
     "email": "contato@sorriso.com",
     "phone": "11999998888",
     "document": "11222333000181"
@@ -760,8 +806,11 @@ Cria a clínica, os horários de funcionamento e o usuário administrador numa
 ```
 
 - `weekday` vai de `0` (domingo) a `6` (sábado), e é preciso pelo menos um dia.
+- `slug` é o subdomínio: de 3 a 63 letras minúsculas, números ou hífens (sem
+  hífen nas pontas). Não pode ser alterado depois.
 - `document` (CPF ou CNPJ) é opcional.
 - O administrador é criado com `mustChangePassword: true`.
 - Respostas: `201` com a clínica e o administrador (sem a senha); `400` para
-  dados inválidos; `409` (`EMAIL_IN_USE`) se o e-mail do administrador já
-  estiver em uso.
+  dados inválidos ou `SLUG_RESERVED` para um endereço reservado; `409`
+  (`EMAIL_IN_USE`) se o e-mail do administrador já estiver em uso, ou
+  (`SLUG_TAKEN`) se o endereço já for de outra clínica.
