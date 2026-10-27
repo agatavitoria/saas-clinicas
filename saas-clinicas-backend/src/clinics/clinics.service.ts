@@ -16,7 +16,11 @@ import type {
   ClinicResponse,
   ClinicSummary,
 } from './dto/clinic-response.dto.js';
-import type { CreateClinicDto } from './dto/create-clinic.dto.js';
+import type {
+  BusinessHourDto,
+  CreateClinicDto,
+} from './dto/create-clinic.dto.js';
+import type { UpdateScheduleSettingsDto } from './dto/update-schedule-settings.dto.js';
 import { isReservedSlug } from './slug.js';
 
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
@@ -49,6 +53,8 @@ export const CLINIC_DETAILS_SELECT = {
   email: true,
   phone: true,
   document: true,
+  timeZone: true,
+  defaultAppointmentMinutes: true,
   active: true,
   createdAt: true,
   ...DELETION_FIELDS_SELECT,
@@ -200,6 +206,77 @@ export class ClinicsService {
     return withDeletionInfo(clinic);
   }
 
+  /** Fuso e duração padrão da agenda. O log leva os valores antigos e novos. */
+  async updateScheduleSettings(
+    id: string,
+    dto: UpdateScheduleSettingsDto,
+  ): Promise<ClinicDetails> {
+    const current = await this.findOne(id);
+    const changes: Record<
+      string,
+      { from: string | number; to: string | number }
+    > = {};
+    for (const field of ['timeZone', 'defaultAppointmentMinutes'] as const) {
+      if (dto[field] !== undefined && dto[field] !== current[field]) {
+        changes[field] = { from: current[field], to: dto[field] };
+      }
+    }
+    if (Object.keys(changes).length === 0) return current;
+
+    const clinic = await this.prisma.tenantTransaction(id, async (tx) => {
+      const updated = await tx.clinic.update({
+        where: { id },
+        data: Object.fromEntries(
+          Object.entries(changes).map(([field, { to }]) => [field, to]),
+        ),
+        select: CLINIC_DETAILS_SELECT,
+      });
+      await this.audit.log(tx, 'clinic.schedule_settings_updated', {
+        target: clinicTarget(updated),
+        metadata: changes,
+      });
+      return updated;
+    });
+    return withDeletionInfo(clinic);
+  }
+
+  /** Substitui o horário de funcionamento da semana inteira. */
+  async updateBusinessHours(
+    id: string,
+    hours: BusinessHourDto[],
+  ): Promise<ClinicDetails> {
+    const current = await this.findOne(id);
+    const next = [...hours]
+      .sort((a, b) => a.weekday - b.weekday)
+      .map(({ weekday, opensAt, closesAt }) => ({
+        weekday,
+        opensAt,
+        closesAt,
+      }));
+    if (sameHours(current.businessHours, next)) return current;
+
+    const clinic = await this.prisma.tenantTransaction(id, async (tx) => {
+      await tx.clinicBusinessHour.deleteMany({});
+      await tx.clinicBusinessHour.createMany({
+        data: next.map((hour) => ({ tenantId: id, ...hour })),
+      });
+      const updated = await tx.clinic.findFirstOrThrow({
+        select: CLINIC_DETAILS_SELECT,
+      });
+      await this.audit.log(tx, 'clinic.business_hours_updated', {
+        target: clinicTarget(updated),
+        metadata: {
+          businessHours: {
+            from: current.businessHours.map(formatHour),
+            to: next.map(formatHour),
+          },
+        },
+      });
+      return updated;
+    });
+    return withDeletionInfo(clinic);
+  }
+
   /** Ativa ou inativa a clínica. Inativar encerra as sessões de toda a equipe. */
   async setActive(id: string, active: boolean): Promise<ClinicDetails> {
     const current = await this.findOne(id);
@@ -230,3 +307,18 @@ export class ClinicsService {
     return withDeletionInfo(clinic);
   }
 }
+
+interface Hour {
+  weekday: number;
+  opensAt: string;
+  closesAt: string;
+}
+
+/** Ex.: "1 08:00-18:00" (segunda); compacto para o log de auditoria. */
+const formatHour = (hour: Hour) =>
+  `${hour.weekday} ${hour.opensAt}-${hour.closesAt}`;
+
+/** As duas listas estão ordenadas por dia da semana. */
+const sameHours = (a: Hour[], b: Hour[]) =>
+  a.length === b.length &&
+  a.every((hour, index) => formatHour(hour) === formatHour(b[index]));

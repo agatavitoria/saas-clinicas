@@ -35,6 +35,8 @@ export const AUDIT_ACTIONS: Record<string, ActionInfo> = {
   'clinic.branding_updated': { label: 'Cor alterada', icon: 'mdi-palette-outline', color: 'primary', sentence: 'alterou a cor principal de {target}' },
   'clinic.logo_updated': { label: 'Logo alterado', icon: 'mdi-image-edit-outline', color: 'primary', sentence: 'alterou o logo de {target}' },
   'clinic.logo_removed': { label: 'Logo removido', icon: 'mdi-image-remove-outline', color: 'secondary', sentence: 'removeu o logo de {target}' },
+  'clinic.schedule_settings_updated': { label: 'Agenda configurada', icon: 'mdi-calendar-clock-outline', color: 'primary', sentence: 'alterou o fuso ou a duração padrão da agenda de {target}' },
+  'clinic.business_hours_updated': { label: 'Horário alterado', icon: 'mdi-clock-edit-outline', color: 'primary', sentence: 'alterou o horário de funcionamento de {target}' },
   'patient.created': { label: 'Paciente cadastrado', icon: 'mdi-account-heart-outline', color: 'success', sentence: 'cadastrou o paciente {target}' },
   'patient.updated': { label: 'Paciente editado', icon: 'mdi-account-edit-outline', color: 'primary', sentence: 'editou o cadastro de {target}' },
   'patient.viewed': { label: 'Ficha consultada', icon: 'mdi-eye-outline', color: 'secondary', sentence: 'abriu a ficha de {target}' },
@@ -91,6 +93,7 @@ export function auditSentence(entry: AuditLogEntry): SentencePart[] {
 /** Complemento a partir do metadata, quando houver. */
 function auditDetail(entry: AuditLogEntry): string | null {
   const { roles, scheduledFor, fields, primaryColor } = entry.metadata
+  if (entry.action === 'clinic.schedule_settings_updated') return scheduleSettingsDetail(entry.metadata)
   if (entry.action === 'clinic.branding_updated' && primaryColor && typeof primaryColor === 'object') {
     const { from, to } = primaryColor as { from?: string | null, to?: string | null }
     return `de ${from ?? 'padrão'} para ${to ?? 'padrão'}`
@@ -109,6 +112,17 @@ function auditDetail(entry: AuditLogEntry): string | null {
     return `exclusão definitiva em ${new Date(scheduledFor).toLocaleDateString('pt-BR')}`
   }
   return null
+}
+
+interface Change<T> { from?: T, to?: T }
+
+function scheduleSettingsDetail(metadata: AuditLogEntry['metadata']): string | null {
+  const timeZone = metadata.timeZone as Change<string> | undefined
+  const minutes = metadata.defaultAppointmentMinutes as Change<number> | undefined
+  const parts: string[] = []
+  if (timeZone?.to) parts.push(`fuso: ${timeZoneLabel(timeZone.to)}`)
+  if (minutes?.to) parts.push(`duração padrão: ${minutes.from} → ${minutes.to} min`)
+  return parts.length ? parts.join('; ') : null
 }
 
 export const formatDateTime = (value: string) =>

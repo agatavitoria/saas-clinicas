@@ -59,6 +59,10 @@ export interface ClinicDetails {
   email: string
   phone: string
   document: string | null
+  /** Fuso IANA da agenda (ex.: America/Sao_Paulo) */
+  timeZone: string
+  /** Duração sugerida para um agendamento novo */
+  defaultAppointmentMinutes: number
   active: boolean
   businessHours: BusinessHour[]
   branding: ClinicBranding | null

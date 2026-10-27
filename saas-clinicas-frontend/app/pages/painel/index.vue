@@ -21,12 +21,19 @@ const { data, status, refresh } = await useAsyncData('dashboard', async () => {
 const activeTeam = computed(() => data.value?.team.filter(member => member.active) ?? [])
 
 const now = useNow()
-const todayWeekday = computed(() => now.value.getDay())
+const todayWeekday = computed(() =>
+  zonedClock(now.value, data.value?.clinic.timeZone ?? DEFAULT_TIME_ZONE).weekday,
+)
 const todayLabel = computed(() =>
-  now.value.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }),
+  now.value.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: data.value?.clinic.timeZone ?? DEFAULT_TIME_ZONE,
+  }),
 )
 const openStatus = computed(() =>
-  data.value ? openingStatus(data.value.clinic.businessHours, now.value) : null,
+  data.value ? openingStatus(data.value.clinic.businessHours, data.value.clinic.timeZone, now.value) : null,
 )
 
 /** Semana completa, de segunda a domingo, marcando os dias fechados. */

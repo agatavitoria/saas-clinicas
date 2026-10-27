@@ -250,6 +250,14 @@ async function exportData() {
                     </div>
                   </v-list-item>
                 </v-list>
+                <v-list density="compact" class="pt-0">
+                  <v-list-item prepend-icon="mdi-earth" :title="timeZoneLabel(clinic.timeZone)" subtitle="Fuso horário" />
+                  <v-list-item
+                    prepend-icon="mdi-timer-outline"
+                    :title="`${clinic.defaultAppointmentMinutes} min`"
+                    subtitle="Duração padrão da consulta"
+                  />
+                </v-list>
               </v-col>
             </v-row>
           </v-tabs-window-item>

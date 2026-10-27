@@ -4,6 +4,11 @@ import type { BusinessHourForm } from '~/types/clinic'
 
 const hours = defineModel<BusinessHourForm[]>({ required: true })
 
+withDefaults(defineProps<{ hint?: string, disabled?: boolean }>(), {
+  hint: 'Defina os dias e horários de atendimento. Você pode ajustar isso depois.',
+  disabled: false,
+})
+
 const form = ref<VForm>()
 const showNoDayError = ref(false)
 
@@ -40,10 +45,10 @@ defineExpose({
 </script>
 
 <template>
-  <v-form ref="form" @submit.prevent>
+  <v-form ref="form" :disabled="disabled" @submit.prevent>
     <div class="d-flex flex-wrap align-center justify-space-between ga-2 mb-4">
       <p class="text-body-2 text-medium-emphasis">
-        Defina os dias e horários de atendimento. Você pode ajustar isso depois.
+        {{ hint }}
       </p>
       <v-btn
         variant="tonal"

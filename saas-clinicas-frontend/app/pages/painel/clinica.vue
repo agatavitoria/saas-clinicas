@@ -92,20 +92,13 @@ async function cancelRequest() {
     cancelling.value = false
   }
 }
-
-const week = computed(() =>
-  WEEKDAYS.map(day => ({
-    ...day,
-    hours: clinic.value?.businessHours.find(hour => hour.weekday === day.value),
-  })),
-)
 </script>
 
 <template>
   <v-container class="py-6" max-width="1000">
     <div class="mb-6">
       <h1 class="text-h4 font-weight-bold">Clínica</h1>
-      <p class="text-body-1 text-medium-emphasis">Dados da clínica, personalização e privacidade.</p>
+      <p class="text-body-1 text-medium-emphasis">Dados da clínica, agenda, personalização e privacidade.</p>
     </div>
 
     <v-skeleton-loader v-if="status === 'pending' && !clinic" type="article, article" class="rounded-xl" />
@@ -133,17 +126,30 @@ const week = computed(() =>
         </v-col>
         <v-col cols="12" md="6">
           <v-card class="h-100" elevation="1">
+            <v-card-item prepend-icon="mdi-calendar-clock-outline" title="Agenda" subtitle="Fuso horário e duração padrão das consultas" />
+            <v-card-text>
+              <ScheduleSettingsForm
+                :time-zone="clinic.timeZone"
+                :default-appointment-minutes="clinic.defaultAppointmentMinutes"
+                :read-only="readOnly"
+                @update:clinic="(updated: ClinicDetails) => (clinic = updated)"
+                @notify="notify"
+              />
+            </v-card-text>
+          </v-card>
+        </v-col>
+
+        <v-col cols="12">
+          <v-card elevation="1">
             <v-card-item prepend-icon="mdi-clock-outline" title="Horário de funcionamento" />
-            <v-list density="compact" class="pt-0">
-              <v-list-item v-for="day in week" :key="day.value">
-                <div class="d-flex justify-space-between">
-                  <span>{{ day.label }}</span>
-                  <span :class="day.hours ? '' : 'text-medium-emphasis'">
-                    {{ day.hours ? `${day.hours.opensAt} – ${day.hours.closesAt}` : 'Fechado' }}
-                  </span>
-                </div>
-              </v-list-item>
-            </v-list>
+            <v-card-text>
+              <ScheduleBusinessHoursForm
+                :business-hours="clinic.businessHours"
+                :read-only="readOnly"
+                @update:clinic="(updated: ClinicDetails) => (clinic = updated)"
+                @notify="notify"
+              />
+            </v-card-text>
           </v-card>
         </v-col>
 

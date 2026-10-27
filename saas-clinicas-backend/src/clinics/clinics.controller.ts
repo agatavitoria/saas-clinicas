@@ -20,7 +20,9 @@ import type {
   ClinicDetails,
 } from './dto/clinic-response.dto.js';
 import { UpdateBrandingDto } from './dto/update-branding.dto.js';
+import { UpdateBusinessHoursDto } from './dto/update-business-hours.dto.js';
 import { UpdateClinicDto } from './dto/update-clinic.dto.js';
+import { UpdateScheduleSettingsDto } from './dto/update-schedule-settings.dto.js';
 import { sendLogo } from './logo-response.js';
 
 @Controller('clinics')
@@ -43,6 +45,27 @@ export class ClinicsController {
     @Body() dto: UpdateClinicDto,
   ): Promise<ClinicDetails> {
     return this.clinicsService.rename(user.tenantId, dto.name);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Patch('me/schedule-settings')
+  updateScheduleSettings(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateScheduleSettingsDto,
+  ): Promise<ClinicDetails> {
+    return this.clinicsService.updateScheduleSettings(user.tenantId, dto);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Put('me/business-hours')
+  updateBusinessHours(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateBusinessHoursDto,
+  ): Promise<ClinicDetails> {
+    return this.clinicsService.updateBusinessHours(
+      user.tenantId,
+      dto.businessHours,
+    );
   }
 
   /** Logo da clínica, exibido para toda a equipe. */

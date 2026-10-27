@@ -98,10 +98,9 @@ sistema guarda dados de saúde.
   - Métricas de uso por clínica e alertas.
   - Limite de requisições por clínica, para que uma não sobrecarregue as
     outras.
-- [ ] **Personalização por tenant.** Logo, cor principal e subdomínio já
-  existem. Pendências:
-  - [ ] preferências como fuso horário, duração padrão da consulta e textos
-    de lembrete.
+- [ ] **Personalização por tenant.** Logo, cor principal, subdomínio, fuso
+  horário e duração padrão da consulta já existem. Pendências:
+  - [ ] textos de lembrete.
 
 ## Papéis
 
@@ -728,6 +727,8 @@ que o frontend traduz para uma mensagem em português.
 | GET    | `/api/clinics/me`                 | logado       | dados, horários e `branding` da clínica     |
 | PATCH  | `/api/clinics/me`                 | `ADMIN`      | `{ name }`: renomeia a clínica              |
 | GET    | `/api/clinics/me/logo`            | logado       | imagem do logo (use `?v=<logoUpdatedAt>`)   |
+| PATCH  | `/api/clinics/me/schedule-settings` | `ADMIN`    | `{ timeZone?, defaultAppointmentMinutes? }`: fuso IANA e duração padrão |
+| PUT    | `/api/clinics/me/business-hours`  | `ADMIN`      | `{ businessHours }`: substitui a semana (dias ausentes = fechado) |
 | PATCH  | `/api/clinics/me/branding`        | `ADMIN`      | `{ primaryColor }` (`#RRGGBB` ou `null`)    |
 | PUT    | `/api/clinics/me/branding/logo`   | `ADMIN`      | corpo = a imagem, `Content-Type: image/*`   |
 | DELETE | `/api/clinics/me/branding/logo`   | `ADMIN`      | remove o logo                               |

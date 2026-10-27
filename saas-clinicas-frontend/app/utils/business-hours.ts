@@ -1,4 +1,4 @@
-import type { BusinessHour } from '~/types/clinic'
+import type { BusinessHour, BusinessHourForm } from '~/types/clinic'
 
 export interface OpeningStatus {
   open: boolean
@@ -6,16 +6,10 @@ export interface OpeningStatus {
   label: string
 }
 
-const toTime = (date: Date): string =>
-  `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-
-/**
- * Situação da clínica no momento informado. Usa o fuso de quem está vendo,
- * já que a clínica ainda não tem fuso cadastrado.
- */
-export function openingStatus(hours: BusinessHour[], now = new Date()): OpeningStatus {
-  const today = hours.find(hour => hour.weekday === now.getDay())
-  const time = toTime(now)
+/** Situação da clínica no momento informado, no fuso da clínica. */
+export function openingStatus(hours: BusinessHour[], timeZone: string, now = new Date()): OpeningStatus {
+  const { weekday, time } = zonedClock(now, timeZone)
+  const today = hours.find(hour => hour.weekday === weekday)
 
   if (today && time >= today.opensAt && time < today.closesAt) {
     return { open: true, label: `Aberta agora · fecha às ${today.closesAt}` }
@@ -24,7 +18,7 @@ export function openingStatus(hours: BusinessHour[], now = new Date()): OpeningS
     return { open: false, label: `Fechada · abre hoje às ${today.opensAt}` }
   }
 
-  const next = nextOpening(hours, now.getDay())
+  const next = nextOpening(hours, weekday)
   return {
     open: false,
     label: next ? `Fechada · abre ${next.when} às ${next.opensAt}` : 'Fechada',
@@ -41,4 +35,24 @@ function nextOpening(hours: BusinessHour[], weekday: number) {
     }
   }
   return null
+}
+
+/** Semana completa para edição; os dias fechados sugerem 08:00–18:00. */
+export function toHoursForm(hours: BusinessHour[]): BusinessHourForm[] {
+  return WEEKDAYS.map(({ value }) => {
+    const hour = hours.find(item => item.weekday === value)
+    return {
+      weekday: value,
+      open: Boolean(hour),
+      opensAt: hour?.opensAt ?? '08:00',
+      closesAt: hour?.closesAt ?? '18:00',
+    }
+  })
+}
+
+/** Só os dias abertos, no formato da API. */
+export function fromHoursForm(hours: BusinessHourForm[]): BusinessHour[] {
+  return hours
+    .filter(hour => hour.open)
+    .map(({ weekday, opensAt, closesAt }) => ({ weekday, opensAt, closesAt }))
 }

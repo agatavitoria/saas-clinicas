@@ -303,6 +303,60 @@
       "body": {}
     },
     {
+      "_id": "req_saas_clinic_schedule",
+      "_type": "request",
+      "parentId": "fld_clinic_data",
+      "name": "Configurar agenda",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/clinics/me/schedule-settings",
+      "description": "Só admin. Fuso IANA e duração padrão da consulta (5 a 240 min, múltiplo de 5); os campos são opcionais.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -1090,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"timeZone\": \"America/Sao_Paulo\",\n  \"defaultAppointmentMinutes\": 30\n}"
+      }
+    },
+    {
+      "_id": "req_saas_clinic_hours",
+      "_type": "request",
+      "parentId": "fld_clinic_data",
+      "name": "Horário de funcionamento",
+      "method": "PUT",
+      "url": "{{ _.baseUrl }}/clinics/me/business-hours",
+      "description": "Só admin. Substitui a semana inteira: os dias ausentes ficam fechados.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -1080,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"businessHours\": [\n    {\n      \"weekday\": 1,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"18:00\"\n    },\n    {\n      \"weekday\": 6,\n      \"opensAt\": \"08:00\",\n      \"closesAt\": \"12:00\"\n    }\n  ]\n}"
+      }
+    },
+    {
       "_id": "fld_clinic_team",
       "_type": "request_group",
       "parentId": "fld_clinic",

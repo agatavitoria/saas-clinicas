@@ -17,23 +17,27 @@ enum UserRole {
 
 /// A clínica é o tenant: toda entidade de negócio aponta para ela via `tenantId`.
 model Clinic {
-  id                    String    @id @default(uuid()) @db.Uuid
-  name                  String
+  id                        String    @id @default(uuid()) @db.Uuid
+  name                      String
   /// Subdomínio da clínica (ex.: "sorriso" em sorriso.dominio.com). Definido na criação, não muda
-  slug                  String    @unique
-  email                 String
-  phone                 String
-  document              String?
+  slug                      String    @unique
+  email                     String
+  phone                     String
+  document                  String?
+  /// Fuso IANA usado na agenda e no horário de funcionamento
+  timeZone                  String    @default("America/Sao_Paulo")
+  /// Duração sugerida para um agendamento novo
+  defaultAppointmentMinutes Int       @default(30)
   /// Clínica inativa bloqueia o acesso de todos os usuários dela
-  active                Boolean   @default(true)
+  active                    Boolean   @default(true)
   /// LGPD: pedido de exclusão feito pelo admin da clínica
-  deletionRequestedAt   DateTime?
-  deletionRequestedById String?   @db.Uuid
-  deletionReason        String?
+  deletionRequestedAt       DateTime?
+  deletionRequestedById     String?   @db.Uuid
+  deletionReason            String?
   /// Preenchido quando o master confirma; a exclusão definitiva ocorre nesta data
-  deletionScheduledFor  DateTime?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  deletionScheduledFor      DateTime?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
 
   businessHours  ClinicBusinessHour[]
   branding       ClinicBranding?

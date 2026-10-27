@@ -1,3 +1,4 @@
+import { applyDecorators } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -71,6 +72,19 @@ export class BusinessHourDto {
   closesAt: string;
 }
 
+/** Semana de funcionamento: ao menos um dia aberto, sem repetir dias. */
+export const IsBusinessHours = () =>
+  applyDecorators(
+    IsArray(),
+    ArrayMinSize(1),
+    ArrayMaxSize(7),
+    ArrayUnique((hour: BusinessHourDto) => hour.weekday, {
+      message: 'businessHours must not repeat weekdays',
+    }),
+    ValidateNested({ each: true }),
+    Type(() => BusinessHourDto),
+  );
+
 export class AdminUserDto {
   @Trim()
   @IsString()
@@ -96,14 +110,7 @@ export class CreateClinicDto {
   @Type(() => ClinicDataDto)
   clinic: ClinicDataDto;
 
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(7)
-  @ArrayUnique((hour: BusinessHourDto) => hour.weekday, {
-    message: 'businessHours must not repeat weekdays',
-  })
-  @ValidateNested({ each: true })
-  @Type(() => BusinessHourDto)
+  @IsBusinessHours()
   businessHours: BusinessHourDto[];
 
   @ValidateNested()

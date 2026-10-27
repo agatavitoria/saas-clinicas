@@ -119,3 +119,24 @@ export function IsTimeAfter(property: string, options?: ValidationOptions) {
     });
   };
 }
+
+/** Nomes canônicos dos fusos IANA que o runtime conhece (ex.: America/Sao_Paulo). */
+const TIME_ZONES = new Set(Intl.supportedValuesOf('timeZone'));
+
+export function IsIanaTimeZone(options?: ValidationOptions) {
+  return (object: object, propertyName: string) => {
+    registerDecorator({
+      name: 'isIanaTimeZone',
+      target: object.constructor,
+      propertyName,
+      options: {
+        message: '$property must be an IANA time zone (e.g. America/Sao_Paulo)',
+        ...options,
+      },
+      validator: {
+        validate: (value: unknown) =>
+          typeof value === 'string' && TIME_ZONES.has(value),
+      },
+    });
+  };
+}

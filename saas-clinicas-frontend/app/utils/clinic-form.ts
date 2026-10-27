@@ -40,9 +40,7 @@ export function toCreateClinicPayload(form: ClinicForm): CreateClinicPayload {
       phone: onlyDigits(form.clinic.phone),
       ...(document ? { document } : {}),
     },
-    businessHours: form.businessHours
-      .filter(hour => hour.open)
-      .map(({ weekday, opensAt, closesAt }) => ({ weekday, opensAt, closesAt })),
+    businessHours: fromHoursForm(form.businessHours),
     admin: {
       name: form.admin.name.trim(),
       email: form.admin.email.trim(),
