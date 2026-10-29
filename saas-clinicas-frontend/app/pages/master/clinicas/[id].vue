@@ -267,7 +267,7 @@ async function exportData() {
           </v-tabs-window-item>
 
           <v-tabs-window-item value="branding" class="pa-4">
-            <ClinicNameForm
+            <BrandingClinicNameForm
               :name="clinic.name"
               :path="basePath"
               @update:clinic="(updated: ClinicDetails) => (clinic = updated)"

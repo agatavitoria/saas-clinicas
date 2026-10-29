@@ -157,7 +157,7 @@ async function cancelRequest() {
           <v-card elevation="1">
             <v-card-item prepend-icon="mdi-palette-outline" title="Personalização" subtitle="Nome, cor e logo da clínica no sistema" />
             <v-card-text>
-              <ClinicNameForm
+              <BrandingClinicNameForm
                 :name="clinic.name"
                 path="/clinics/me"
                 :read-only="readOnly"

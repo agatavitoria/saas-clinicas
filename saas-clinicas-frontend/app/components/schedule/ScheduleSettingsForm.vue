@@ -78,7 +78,7 @@ async function save() {
       <v-col cols="12" md="4">
         <v-text-field
           v-model.number="draft.minutes"
-          label="Duração padrão da consulta"
+          label="Duração padrão"
           type="number"
           suffix="min"
           :min="MIN_MINUTES"
