@@ -13,6 +13,11 @@ Monorepo com um único repositório git na raiz (`~/projetos/saas-clinicas`):
 
 - `saas-clinicas-backend/` — API em NestJS (TypeScript)
 - `saas-clinicas-frontend/` — aplicação web em Nuxt (TypeScript)
+- `docs/` — documentação detalhada por assunto (rotas em `api.md`,
+  multi-tenancy, auth, auditoria/LGPD, modelo de dados, roadmap). O
+  `README.md` da raiz é só o resumo: objetivo, tecnologias, padrões e como
+  rodar. Rotas, tabelas ou regras novas atualizam o arquivo de `docs/`
+  correspondente.
 
 As subpastas NÃO devem ter `.git` próprio.
 
