@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   HttpException,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 
 /**
@@ -32,7 +33,16 @@ export type ApiErrorCode =
   | 'LOGO_TOO_LARGE'
   | 'SLUG_RESERVED'
   | 'SLUG_TAKEN'
-  | 'CLINIC_NOT_FOUND';
+  | 'CLINIC_NOT_FOUND'
+  | 'INVALID_DATE_RANGE'
+  | 'INVALID_PROFESSIONAL'
+  | 'APPOINTMENT_CONFLICT'
+  | 'OUTSIDE_BUSINESS_HOURS'
+  | 'APPOINTMENT_IN_PAST'
+  | 'APPOINTMENT_NOT_STARTED'
+  | 'APPOINTMENT_NOT_EDITABLE'
+  | 'INVALID_STATUS_TRANSITION'
+  | 'NOT_OWN_APPOINTMENT';
 
 type ExceptionClass = new (body: object) => HttpException;
 
@@ -56,3 +66,7 @@ export const badRequest = (code: ApiErrorCode, message: string) =>
 
 export const notFound = (code: ApiErrorCode, message: string) =>
   apiError(NotFoundException, 404, code, message);
+
+/** Pedido válido, mas que precisa de confirmação do usuário (ex.: encaixe). */
+export const unprocessable = (code: ApiErrorCode, message: string) =>
+  apiError(UnprocessableEntityException, 422, code, message);

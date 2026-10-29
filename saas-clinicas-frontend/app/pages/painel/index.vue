@@ -45,7 +45,6 @@ const week = computed(() =>
 )
 
 const COMING_SOON = [
-  { icon: 'mdi-calendar-month-outline', title: 'Agenda', text: 'Agendamentos por profissional, com confirmação e controle de faltas.' },
   { icon: 'mdi-stethoscope', title: 'Profissionais', text: 'Equipe de atendimento com horários e agenda própria.' },
 ]
 </script>

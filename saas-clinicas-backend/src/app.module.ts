@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AppointmentsModule } from './appointments/appointments.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { ClinicsModule } from './clinics/clinics.module.js';
@@ -23,6 +24,7 @@ import { UsersModule } from './users/users.module.js';
     ClinicsModule,
     UsersModule,
     PatientsModule,
+    AppointmentsModule,
     PlatformModule,
     PrivacyModule,
   ],

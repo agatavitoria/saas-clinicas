@@ -49,3 +49,35 @@ export function zonedClock(date: Date, timeZone: string): { weekday: number, tim
   )
   return { weekday: WEEKDAY_INDEX[parts.weekday!]!, time: `${parts.hour}:${parts.minute}` }
 }
+
+/** Data YYYY-MM-DD de um instante no fuso informado. */
+export function zonedDate(date: Date, timeZone: string): string {
+  // en-CA formata como YYYY-MM-DD
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
+}
+
+/** Diferença (ms) entre o relógio do fuso e o UTC naquele instante. */
+function offsetMs(instant: Date, timeZone: string): number {
+  const { time } = zonedClock(instant, timeZone)
+  const [hours, minutes] = time.split(':').map(Number) as [number, number]
+  const [year, month, day] = zonedDate(instant, timeZone).split('-').map(Number) as [number, number, number]
+  const local = Date.UTC(year, month - 1, day, hours, minutes)
+  return local - Math.floor(instant.getTime() / 60_000) * 60_000
+}
+
+/** Instante de uma data e hora de parede no fuso (ex.: 09:00 em São Paulo). */
+export function zonedToInstant(date: string, time: string, timeZone: string): Date {
+  const [year, month, day] = date.split('-').map(Number) as [number, number, number]
+  const [hours, minutes] = time.split(':').map(Number) as [number, number]
+  const wall = Date.UTC(year, month - 1, day, hours, minutes)
+  // Duas passadas acertam também os dias de mudança de horário de verão
+  let instant = wall - offsetMs(new Date(wall), timeZone)
+  instant = wall - offsetMs(new Date(instant), timeZone)
+  return new Date(instant)
+}
+
+/** Minutos desde a meia-noite de um instante, no fuso informado. */
+export function zonedMinutes(date: Date, timeZone: string): number {
+  const [hours, minutes] = zonedClock(date, timeZone).time.split(':').map(Number) as [number, number]
+  return hours * 60 + minutes
+}

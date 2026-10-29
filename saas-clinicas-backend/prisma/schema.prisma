@@ -45,6 +45,7 @@ model Clinic {
   refreshTokens  RefreshToken[]
   patients       Patient[]
   patientRecords PatientRecord[]
+  appointments   Appointment[]
 
   @@map("clinics")
 }
@@ -101,6 +102,9 @@ model User {
   clinic         Clinic          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   refreshTokens  RefreshToken[]
   patientRecords PatientRecord[]
+  appointments   Appointment[]   @relation("ProfessionalAppointments")
+  /// Agendamentos marcados por este usuário
+  bookings       Appointment[]   @relation("AppointmentCreator")
 
   @@index([tenantId])
   @@map("users")
@@ -217,8 +221,9 @@ model Patient {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  clinic  Clinic          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  records PatientRecord[]
+  clinic       Clinic          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  records      PatientRecord[]
+  appointments Appointment[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId, name])
@@ -248,4 +253,43 @@ model PatientRecord {
   @@index([tenantId, patientId, occurredAt(sort: Desc)])
   @@index([amendsId])
   @@map("patient_records")
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+/// Agendamento de um paciente com um profissional. Cancelado, nunca apagado.
+/// Uma exclusion constraint (ver migration) impede que o mesmo profissional
+/// tenha dois agendamentos ativos com horários sobrepostos.
+model Appointment {
+  id                   String            @id @default(uuid()) @db.Uuid
+  tenantId             String            @db.Uuid
+  patientId            String            @db.Uuid
+  professionalId       String            @db.Uuid
+  startsAt             DateTime
+  endsAt               DateTime
+  status               AppointmentStatus @default(SCHEDULED)
+  /// Encaixe: marcado fora do horário de funcionamento, de propósito
+  outsideBusinessHours Boolean           @default(false)
+  /// Observação para a equipe (ex.: "retorno"); não é prontuário
+  notes                String?
+  cancelReason         String?
+  createdById          String            @db.Uuid
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  clinic       Clinic  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient      Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  professional User    @relation("ProfessionalAppointments", fields: [professionalId], references: [id], onDelete: Cascade)
+  createdBy    User    @relation("AppointmentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, startsAt])
+  @@index([tenantId, professionalId, startsAt])
+  @@index([patientId, startsAt])
+  @@map("appointments")
 }

@@ -90,6 +90,12 @@ export class PrivacyService {
                     professional: { select: { id: true, name: true } },
                   },
                 },
+                appointments: {
+                  orderBy: { startsAt: 'asc' },
+                  include: {
+                    professional: { select: { id: true, name: true } },
+                  },
+                },
               },
             })
             .then((patients) => ({ patients }))

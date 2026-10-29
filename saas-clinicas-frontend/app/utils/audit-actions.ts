@@ -1,3 +1,4 @@
+import type { AppointmentStatus } from '~/types/appointment'
 import type { AuditLogEntry } from '~/types/audit'
 import type { UserRole } from '~/types/auth'
 
@@ -44,6 +45,10 @@ export const AUDIT_ACTIONS: Record<string, ActionInfo> = {
   'patient.reactivated': { label: 'Paciente reativado', icon: 'mdi-account-check-outline', color: 'success', sentence: 'reativou o paciente {target}' },
   'patient_record.created': { label: 'Atendimento registrado', icon: 'mdi-clipboard-text-outline', color: 'primary', sentence: 'registrou um atendimento de {target}' },
   'patient_record.amended': { label: 'Adendo no prontuário', icon: 'mdi-clipboard-edit-outline', color: 'warning', sentence: 'adicionou um adendo ao prontuário de {target}' },
+  'appointment.created': { label: 'Agendamento criado', icon: 'mdi-calendar-plus', color: 'success', sentence: 'agendou um horário para {target}' },
+  'appointment.rescheduled': { label: 'Agendamento remarcado', icon: 'mdi-calendar-edit', color: 'primary', sentence: 'remarcou o horário de {target}' },
+  'appointment.updated': { label: 'Agendamento editado', icon: 'mdi-calendar-text', color: 'secondary', sentence: 'editou a observação do agendamento de {target}' },
+  'appointment.status_changed': { label: 'Status do agendamento', icon: 'mdi-calendar-sync', color: 'primary', sentence: 'alterou o status do agendamento de {target}' },
   'clinic.data_exported': { label: 'Dados exportados', icon: 'mdi-download', color: 'primary', sentence: 'exportou os dados da clínica {target}' },
   'clinic.deletion_requested': { label: 'Exclusão solicitada', icon: 'mdi-delete-clock-outline', color: 'warning', sentence: 'solicitou a exclusão da clínica {target}' },
   'clinic.deletion_cancelled': { label: 'Exclusão cancelada', icon: 'mdi-delete-restore', color: 'success', sentence: 'cancelou a exclusão da clínica {target}' },
@@ -94,6 +99,7 @@ export function auditSentence(entry: AuditLogEntry): SentencePart[] {
 function auditDetail(entry: AuditLogEntry): string | null {
   const { roles, scheduledFor, fields, primaryColor } = entry.metadata
   if (entry.action === 'clinic.schedule_settings_updated') return scheduleSettingsDetail(entry.metadata)
+  if (entry.action === 'appointment.status_changed') return appointmentStatusDetail(entry.metadata)
   if (entry.action === 'clinic.branding_updated' && primaryColor && typeof primaryColor === 'object') {
     const { from, to } = primaryColor as { from?: string | null, to?: string | null }
     return `de ${from ?? 'padrão'} para ${to ?? 'padrão'}`
@@ -123,6 +129,12 @@ function scheduleSettingsDetail(metadata: AuditLogEntry['metadata']): string | n
   if (timeZone?.to) parts.push(`fuso: ${timeZoneLabel(timeZone.to)}`)
   if (minutes?.to) parts.push(`duração padrão: ${minutes.from} → ${minutes.to} min`)
   return parts.length ? parts.join('; ') : null
+}
+
+function appointmentStatusDetail(metadata: AuditLogEntry['metadata']): string | null {
+  const status = metadata.status as Change<AppointmentStatus> | undefined
+  if (!status?.from || !status.to) return null
+  return `de ${APPOINTMENT_STATUS[status.from].label.toLowerCase()} para ${APPOINTMENT_STATUS[status.to].label.toLowerCase()}`
 }
 
 export const formatDateTime = (value: string) =>

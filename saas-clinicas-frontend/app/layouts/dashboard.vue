@@ -40,6 +40,7 @@ watch(user, (current) => {
 
 const navItems = computed(() => [
   { title: 'Painel', icon: 'mdi-view-dashboard-outline', to: '/painel' },
+  { title: 'Agenda', icon: 'mdi-calendar-month-outline', to: '/painel/agenda' },
   { title: 'Pacientes', icon: 'mdi-account-heart-outline', to: '/painel/pacientes' },
   ...(isAdmin.value
     ? [
@@ -48,8 +49,6 @@ const navItems = computed(() => [
         { title: 'Clínica', icon: 'mdi-cog-outline', to: '/painel/clinica' },
       ]
     : []),
-  { title: 'Agenda', icon: 'mdi-calendar-month-outline', soon: true },
-
   { title: 'Profissionais', icon: 'mdi-stethoscope', soon: true },
 ])
 

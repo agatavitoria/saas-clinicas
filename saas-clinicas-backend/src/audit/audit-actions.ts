@@ -35,6 +35,11 @@ export const AUDIT_ACTIONS = [
   'patient.reactivated',
   'patient_record.created',
   'patient_record.amended',
+  // Agenda
+  'appointment.created',
+  'appointment.rescheduled',
+  'appointment.updated',
+  'appointment.status_changed',
   // LGPD
   'clinic.data_exported',
   'clinic.deletion_requested',

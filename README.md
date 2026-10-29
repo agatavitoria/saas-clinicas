@@ -36,6 +36,19 @@ agenda, e nunca enxerga dados de outra clínica.
   - ficha do paciente;
   - **prontuário**: registros de atendimento imutáveis, com adendos para
     correções.
+- **Agenda**, em `/painel/agenda`:
+  - visão de dia (uma coluna por profissional) e de semana, com o horário de
+    funcionamento em destaque e a linha do "agora";
+  - agendamento com paciente, profissional, data, hora e duração (sugerida
+    pela duração padrão da clínica). Clicar num horário vazio já preenche o
+    profissional e a hora;
+  - o mesmo profissional nunca tem dois horários sobrepostos (trava no banco,
+    vale também para marcações simultâneas);
+  - fora do horário de funcionamento, a tela avisa e permite marcar como
+    **encaixe**;
+  - status: agendado, confirmado, cancelado (com motivo), realizado e faltou.
+    Remarcar volta para "agendado";
+  - horários sempre no fuso da clínica, configurável em `/painel/clinica`.
 - **Auditoria:** histórico imutável de quem fez o quê e quando. O admin vê o
   da própria clínica, em `/painel/atividades`; o master vê o de toda a
   plataforma, em `/master/atividades`.
@@ -55,8 +68,10 @@ agenda, e nunca enxerga dados de outra clínica.
 
 **Planejado**
 
-- Profissionais com agenda própria
-- Agendamentos com status: agendado, confirmado, cancelado, realizado, faltou
+- Agenda própria por profissional (dias e horários diferentes dos da
+  clínica) e bloqueios, como férias e intervalos
+- Lembretes de consulta para o paciente
+- Ligar o agendamento realizado ao registro de atendimento no prontuário
 
 Os temas de plataforma SaaS que ainda faltam estão no [Roadmap](#roadmap).
 
@@ -126,6 +141,14 @@ Permissões sobre pacientes:
 | Ver os atendimentos                      | ✅       | ✅           | ✅    |
 | Registrar atendimento                    | ❌       | ✅           | ✅    |
 | Adicionar adendo                         | ❌       | só no próprio registro | ✅ |
+
+Permissões na agenda:
+
+| Ação                                        | Recepção | Profissional | Admin |
+| ------------------------------------------- | :------: | :----------: | :---: |
+| Ver a agenda de todos                       | ✅       | ✅           | ✅    |
+| Agendar, remarcar e cancelar                | ✅       | só na própria agenda | ✅ |
+| Confirmar, marcar realizado ou falta        | ✅       | só na própria agenda | ✅ |
 
 O admin master **não vê dados de pacientes**: só a quantidade por clínica. Na
 LGPD, a clínica é a controladora dos dados de saúde.
@@ -238,7 +261,8 @@ esquecido), o banco devolve zero linhas em vez de vazar dados.
   SELECT set_config('app.tenant_id', '<id da clínica>', true);
   ```
   As políticas de `clinics`, `clinic_business_hours`, `clinic_brandings`,
-  `users`, `refresh_tokens`, `audit_logs`, `patients` e `patient_records` só deixam
+  `users`, `refresh_tokens`, `audit_logs`, `patients`, `patient_records` e
+  `appointments` só deixam
   passar linhas em que `tenantId = app_current_tenant()`.
 - **Transações com várias operações:** use
   `prisma.tenantTransaction(tenantId, async (tx) => …)`. Ela faz o mesmo
@@ -272,6 +296,8 @@ erDiagram
     patients ||--o{ patient_records : "tem prontuário"
     users ||--o{ patient_records : "registra"
     patient_records ||--o{ patient_records : "adendos"
+    patients ||--o{ appointments : "é agendado"
+    users ||--o{ appointments : "atende"
     platform_admins ||--o{ platform_refresh_tokens : "tem sessões"
 
     clinics {
@@ -281,6 +307,8 @@ erDiagram
         string email
         string phone
         string document "CPF ou CNPJ, opcional"
+        string timeZone "fuso IANA da agenda"
+        int defaultAppointmentMinutes "duração sugerida"
         boolean active "inativa bloqueia toda a equipe"
         datetime deletionRequestedAt "LGPD: pedido do admin"
         uuid deletionRequestedById
@@ -375,6 +403,22 @@ erDiagram
         datetime createdAt
     }
 
+    appointments {
+        uuid id PK
+        uuid tenantId FK
+        uuid patientId FK
+        uuid professionalId FK
+        datetime startsAt
+        datetime endsAt
+        enum status "SCHEDULED, CONFIRMED, CANCELLED, COMPLETED, NO_SHOW"
+        boolean outsideBusinessHours "encaixe"
+        string notes "observação, não é prontuário"
+        string cancelReason
+        uuid createdById FK "quem marcou"
+        datetime createdAt
+        datetime updatedAt
+    }
+
     audit_logs {
         uuid id PK
         uuid tenantId "sem FK: sobrevive à exclusão"
@@ -419,6 +463,12 @@ Como ler o diagrama:
   exclusão, e o papel `app_tenant` só tem `SELECT` e `INSERT` nessa tabela.
   Correções e complementos são adendos, com `amendsId` apontando para o
   registro original.
+- **`appointments`** é a agenda. Uma *exclusion constraint* (`btree_gist`)
+  impede que o mesmo profissional tenha dois agendamentos sobrepostos entre os
+  agendados, confirmados e realizados; cancelados e faltas liberam o horário.
+  O intervalo é `[início, fim)`, então um termina às 09:00 e o seguinte começa
+  às 09:00 sem conflito. Agendamentos são cancelados, nunca apagados (o papel
+  `app_tenant` não tem `DELETE`).
 - **`audit_logs`** só aceita inserção. Não tem chave estrangeira para a
   clínica, de propósito: quando uma clínica é excluída, os logs dela continuam,
   anonimizados, como prova do que aconteceu.
@@ -600,6 +650,15 @@ master padrão e uma clínica de exemplo:
 | http://admin.localhost:3000/master  | `admin`          | `admin`    |
 | http://demo.localhost:3000/login    | `admin@demo.com` | `demo1234` |
 
+A clínica `demo` também ganha uma equipe e pacientes fictícios, para testar a
+agenda. Todos usam a senha `demo1234`:
+
+| Usuário             | Papel        |
+| ------------------- | ------------ |
+| `ana@demo.com`      | profissional |
+| `bruno@demo.com`    | profissional |
+| `recepcao@demo.com` | recepção     |
+
 > Essas credenciais são só para desenvolvimento. A seed se recusa a rodar com
 > `NODE_ENV=production` e não sobrescreve o admin se ele já existir. Fora do
 > ambiente local, crie um master com senha forte:
@@ -745,6 +804,11 @@ que o frontend traduz para uma mensagem em português.
 | GET    | `/api/patients/:id/records`       | logado       | atendimentos com adendos (`professionalId`) |
 | POST   | `/api/patients/:id/records`       | `PROFESSIONAL`, `ADMIN` | `{ notes, occurredAt? }`         |
 | POST   | `/api/patients/:id/records/:recordId/amendments` | autor ou `ADMIN` | `{ notes }`             |
+| GET    | `/api/professionals`              | logado       | profissionais ativos (para a agenda)        |
+| GET    | `/api/appointments`               | logado       | `from`, `to` (até 31 dias), `professionalId?`, `patientId?` |
+| POST   | `/api/appointments`               | recepção, admin ou o próprio profissional | `{ patientId, professionalId, startsAt, durationMinutes, notes?, allowOutsideBusinessHours? }` |
+| PATCH  | `/api/appointments/:id`           | idem         | remarca e/ou altera a observação            |
+| PATCH  | `/api/appointments/:id/status`    | idem         | `{ status, cancelReason? }`                 |
 | GET    | `/api/audit-logs`                 | `ADMIN`      | histórico da clínica (filtros e cursor)     |
 | GET    | `/api/clinics/me/export`          | `ADMIN`      | exportação dos dados (JSON)                 |
 | POST   | `/api/clinics/me/deletion-request` | `ADMIN`     | `{ confirmationName, reason? }`             |
@@ -780,6 +844,31 @@ que o frontend traduz para uma mensagem em português.
 Os históricos aceitam os filtros `action`, `actorId`, `from`, `to`, `limit`
 (até 100) e `cursor`. Para buscar a página seguinte, passe como `cursor` o
 `nextCursor` da página anterior.
+
+### Agendamentos
+
+- `startsAt` precisa ter fuso explícito (`2026-11-02T09:00:00-03:00` ou
+  `...Z`). O expediente é conferido no fuso da clínica.
+- A duração vai de 5 a 480 minutos, em múltiplos de 5.
+- Status: todo agendamento nasce `SCHEDULED`. Daí pode ir para `CONFIRMED`,
+  `CANCELLED`, `COMPLETED` ou `NO_SHOW`; de `CONFIRMED`, para os três
+  últimos. Os três últimos são finais. `COMPLETED` e `NO_SHOW` só valem a
+  partir do horário marcado.
+- Remarcar (profissional, início ou duração) só vale para agendamentos em
+  aberto e volta o status para `SCHEDULED`.
+
+| Código                      | Status | Quando                                              |
+| --------------------------- | :----: | --------------------------------------------------- |
+| `APPOINTMENT_CONFLICT`      | 409    | o profissional já tem agendamento no horário        |
+| `OUTSIDE_BUSINESS_HOURS`    | 422    | fora do funcionamento; reenvie com `allowOutsideBusinessHours: true` para marcar o encaixe |
+| `APPOINTMENT_IN_PAST`       | 400    | início no passado                                   |
+| `INVALID_PROFESSIONAL`      | 400    | usuário inativo ou sem o papel `PROFESSIONAL`       |
+| `PATIENT_INACTIVE`          | 409    | paciente inativado                                  |
+| `INVALID_STATUS_TRANSITION` | 409    | mudança de status não permitida                     |
+| `APPOINTMENT_NOT_STARTED`   | 409    | realizado ou falta antes do horário                 |
+| `APPOINTMENT_NOT_EDITABLE`  | 409    | remarcar um agendamento finalizado                  |
+| `NOT_OWN_APPOINTMENT`       | 403    | profissional mexendo na agenda de outro             |
+| `INVALID_DATE_RANGE`        | 400    | período da listagem invertido ou maior que 31 dias  |
 
 ### `POST /api/platform/clinics`
 

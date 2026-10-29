@@ -1,8 +1,10 @@
 /**
  * Seed de desenvolvimento: cria o admin master padrão (login "admin",
  * senha "admin") e a clínica "demo" (http://demo.localhost:3000, login
- * "admin@demo.com", senha "demo1234"). Só cria o que ainda não existir, então
- * não sobrescreve uma senha já trocada. Recusa rodar em produção.
+ * "admin@demo.com", senha "demo1234"), com profissionais, recepção e
+ * pacientes de exemplo para testar a agenda. Só cria o que ainda não
+ * existir, então não sobrescreve uma senha já trocada. Recusa rodar em
+ * produção.
  *
  *   npm run db:seed
  */
@@ -20,6 +22,21 @@ const DEMO_CLINIC = {
   phone: '1133334444',
   admin: { name: 'Admin Demo', email: 'admin@demo.com', password: 'demo1234' },
 };
+
+/** Equipe de exemplo da clínica demo (mesma senha do admin). */
+const DEMO_TEAM = [
+  { name: 'Dra. Ana Lima', email: 'ana@demo.com', roles: ['PROFESSIONAL'] },
+  { name: 'Dr. Bruno Costa', email: 'bruno@demo.com', roles: ['PROFESSIONAL'] },
+  { name: 'Carla Recepção', email: 'recepcao@demo.com', roles: ['RECEPTION'] },
+] as const;
+
+/** Pacientes fictícios (CPFs válidos de teste). */
+const DEMO_PATIENTS = [
+  { name: 'Maria Souza', cpf: '52998224725', birthDate: '1985-03-12' },
+  { name: 'João Pereira', cpf: '11144477735', birthDate: '1972-11-30' },
+  { name: 'Beatriz Santos', cpf: '39053344705', birthDate: '2001-07-08' },
+  { name: 'Pedro Almeida', cpf: '86288366757', birthDate: '1994-01-21' },
+];
 
 async function seedPlatformAdmin(prisma: PrismaClient) {
   const existing = await prisma.platformAdmin.findUnique({
@@ -80,6 +97,48 @@ async function seedDemoClinic(prisma: PrismaClient) {
   );
 }
 
+/** Profissionais, recepção e pacientes de exemplo; pula os que já existem. */
+async function seedDemoData(prisma: PrismaClient) {
+  const clinic = await prisma.clinic.findUnique({
+    where: { slug: DEMO_CLINIC.slug },
+  });
+  if (!clinic) return;
+
+  const passwordHash = await argon2.hash(DEMO_CLINIC.admin.password);
+  for (const member of DEMO_TEAM) {
+    const existing = await prisma.user.findUnique({
+      where: { email: member.email },
+    });
+    if (existing) continue;
+    await prisma.user.create({
+      data: {
+        tenantId: clinic.id,
+        name: member.name,
+        email: member.email,
+        roles: [...member.roles],
+        passwordHash,
+      },
+    });
+    console.log(`Usuário de exemplo criado: "${member.email}".`);
+  }
+
+  for (const patient of DEMO_PATIENTS) {
+    const existing = await prisma.patient.findUnique({
+      where: { tenantId_cpf: { tenantId: clinic.id, cpf: patient.cpf } },
+    });
+    if (existing) continue;
+    await prisma.patient.create({
+      data: {
+        tenantId: clinic.id,
+        name: patient.name,
+        cpf: patient.cpf,
+        birthDate: new Date(`${patient.birthDate}T00:00:00Z`),
+      },
+    });
+    console.log(`Paciente de exemplo criado: "${patient.name}".`);
+  }
+}
+
 async function main() {
   if (process.env.NODE_ENV === 'production') {
     console.error('Seed de desenvolvimento: não rode em produção.');
@@ -92,6 +151,7 @@ async function main() {
   try {
     await seedPlatformAdmin(prisma);
     await seedDemoClinic(prisma);
+    await seedDemoData(prisma);
   } finally {
     await prisma.$disconnect();
   }

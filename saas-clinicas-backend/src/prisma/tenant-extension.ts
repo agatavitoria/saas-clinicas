@@ -35,6 +35,7 @@ const TENANT_FIELD: Partial<Record<Prisma.ModelName, string>> = {
   AuditLog: 'tenantId',
   Patient: 'tenantId',
   PatientRecord: 'tenantId',
+  Appointment: 'tenantId',
 };
 
 const WHERE_OPERATIONS = new Set([

@@ -1467,6 +1467,148 @@
         "mimeType": "application/json",
         "text": "{\n  \"notes\": \"Correção: a dor é cervical, não lombar.\"\n}"
       }
+    },
+    {
+      "_id": "fld_clinic_agenda",
+      "_type": "request_group",
+      "parentId": "fld_clinic",
+      "name": "Agenda",
+      "description": "Consultar: todos os papéis. Cadastrar/editar/inativar: RECEPTION e ADMIN. Registrar atendimento e adendo: PROFESSIONAL e ADMIN.",
+      "environment": {},
+      "metaSortKey": -4999
+    },
+    {
+      "_id": "req_saas_professionals",
+      "_type": "request",
+      "parentId": "fld_clinic_agenda",
+      "name": "Profissionais",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/professionals",
+      "description": "Profissionais ativos da clínica.",
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -1000,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_appointments_list",
+      "_type": "request",
+      "parentId": "fld_clinic_agenda",
+      "name": "Listar agendamentos",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/appointments",
+      "description": "Agendamentos que se sobrepõem a [from, to); até 31 dias.",
+      "headers": [],
+      "parameters": [
+        {
+          "name": "from",
+          "value": "2026-11-02T00:00:00-03:00"
+        },
+        {
+          "name": "to",
+          "value": "2026-11-09T00:00:00-03:00"
+        },
+        {
+          "name": "professionalId",
+          "value": "",
+          "disabled": true
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -990,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {}
+    },
+    {
+      "_id": "req_saas_appointments_create",
+      "_type": "request",
+      "parentId": "fld_clinic_agenda",
+      "name": "Agendar",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/appointments",
+      "description": "Recepção e admin marcam para qualquer profissional; o profissional, só para si. Fora do expediente responde 422 OUTSIDE_BUSINESS_HOURS; reenvie com allowOutsideBusinessHours para o encaixe.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -980,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"patientId\": \"<id do paciente>\",\n  \"professionalId\": \"<id do profissional>\",\n  \"startsAt\": \"2026-11-02T09:00:00-03:00\",\n  \"durationMinutes\": 30,\n  \"notes\": \"Primeira consulta\"\n}"
+      }
+    },
+    {
+      "_id": "req_saas_appointments_update",
+      "_type": "request",
+      "parentId": "fld_clinic_agenda",
+      "name": "Remarcar",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/appointments/<id>",
+      "description": "Profissional, início, duração e/ou observação. Remarcar volta o status para SCHEDULED.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -970,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"startsAt\": \"2026-11-02T14:00:00-03:00\",\n  \"durationMinutes\": 60\n}"
+      }
+    },
+    {
+      "_id": "req_saas_appointments_status",
+      "_type": "request",
+      "parentId": "fld_clinic_agenda",
+      "name": "Mudar status",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/appointments/<id>/status",
+      "description": "CONFIRMED, CANCELLED (com cancelReason opcional), COMPLETED ou NO_SHOW.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": -960,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"status\": \"CANCELLED\",\n  \"cancelReason\": \"Paciente pediu para remarcar\"\n}"
+      }
     }
   ]
 }
